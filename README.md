@@ -32,6 +32,8 @@ ROS2와 Gazebo 기반으로 TurtleBot3 주행, SLAM/Nav2, rosbag2 로그 분석,
 - [ ] Phase 10. LLM/VLM extension
 
 ### 파일 구조
+
+```text
 missionbot-ros2/
 ├── docs/   (공부 + 구현 내용 정리)
 │   ├── 학습용/   (llm 학습용 프롬프트)
@@ -91,6 +93,7 @@ missionbot-ros2/
     ├── daily_logs/   (일일 진행 기록)
     ├── phase_summaries/   (Phase 종료 요약)
     └── handoff_notes/   (이어가기용 요약)
+```
 
 ### Result
 #### Phase 1. ROS2 basics 완료
