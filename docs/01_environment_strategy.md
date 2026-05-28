@@ -1,6 +1,10 @@
-OS: Ubuntu 24.04 LTS
-ROS2: Jazzy Jalisco
-Gazebo: Jazzy에서 권장되는 modern Gazebo 계열
+Host: Windows Desktop (RTX 3070)
+Virtualization: VMware Workstation 17
+Guest OS: Ubuntu 22.04
+ROS2: Humble Hawksbill
+Simulator: Gazebo Classic
 Robot: TurtleBot3 Burger
-Main simulator: Gazebo
-Visualization: RViz2
+Remote Network: Tailscale
+Remote GUI: NoMachine
+Development Client: MacBook Pro m3
+Code Editing: AntigravityIDE Remote SSH 사용
