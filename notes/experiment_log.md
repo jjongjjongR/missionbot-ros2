@@ -303,3 +303,134 @@
   - src/missionbot_basic/setup.py
   - src/missionbot_basic/package.xml
   - notes/daily_logs/2026-05-25_phase1_ros2_basics.md
+
+  ---
+
+### P02-EXP-0001_turtlebot3_gazebo_basic_check
+
+* Date: 2026-05-25
+* Phase: Phase 2. Gazebo + TurtleBot3
+* Goal: Gazebo empty_world에서 TurtleBot3 Burger를 실행하고, 이동로봇 시뮬레이션의 핵심 topic 구조를 확인한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Gazebo: Gazebo Classic 11.10.2
+  * Robot: TurtleBot3 Burger
+  * Remote GUI: NoMachine
+  * Virtualization: VMware Workstation 17
+* Command:
+
+  ```bash
+  ros2 node list
+  echo $ROS_DISTRO
+  echo $TURTLEBOT3_MODEL
+  which ros2
+  which gazebo
+  ros2 pkg list | grep turtlebot3_gazebo
+  ros2 pkg list | grep turtlebot3_teleop
+  ros2 launch turtlebot3_gazebo empty_world.launch.py
+  gzclient --verbose
+  ros2 topic list | grep -E "cmd_vel|odom|scan"
+  ros2 run turtlebot3_teleop teleop_keyboard
+  ros2 topic info /cmd_vel
+  ros2 topic echo /cmd_vel
+  ros2 topic info /odom
+  ros2 topic echo /odom --once
+  ros2 topic info /scan
+  ros2 topic echo /scan --once
+  rqt_graph
+  ```
+* Topics:
+
+  * `/cmd_vel`
+  * `/odom`
+  * `/scan`
+* Result:
+
+  * ROS2 Humble 환경이 정상 적용되어 있음을 확인했다.
+  * `TURTLEBOT3_MODEL=burger`가 정상 설정되어 있음을 확인했다.
+  * `turtlebot3_gazebo`, `turtlebot3_teleop` 패키지가 정상 인식됨을 확인했다.
+  * Gazebo empty_world에서 TurtleBot3 Burger spawn을 확인했다.
+  * 최초 실행 중 `gzclient` crash가 발생했지만, `gzserver`와 ROS2 topic은 살아 있었다.
+  * `gzclient --verbose`로 Gazebo GUI를 다시 연결했다.
+  * `/cmd_vel`, `/odom`, `/scan` topic이 생성되는 것을 확인했다.
+  * `teleop_keyboard`를 통해 TurtleBot3가 이동하는 것을 확인했다.
+  * `/cmd_vel`에서 `geometry_msgs/msg/Twist` 메시지 값이 변하는 것을 확인했다.
+  * `/odom`에서 TurtleBot3 이동 전후 position 값이 변하는 것을 확인했다.
+  * `/scan`에서 `sensor_msgs/msg/LaserScan` 메시지가 출력되는 것을 확인했다.
+  * `rqt_graph`로 `/teleop_keyboard → /cmd_vel → Gazebo/TurtleBot3` 연결을 확인했다.
+* Success: Yes
+* Failure Type:
+
+  * `gzclient_gui_crash_recovered`
+* Notes:
+
+  * Gazebo는 `gzserver`와 `gzclient`가 분리되어 있다.
+  * GUI인 `gzclient`가 죽어도 시뮬레이션 서버인 `gzserver`와 ROS2 topic은 살아 있을 수 있다.
+  * `/cmd_vel`은 이동로봇의 속도 명령 topic이다.
+  * `/odom`은 로봇의 위치, 자세, 속도 추정 정보를 담는 topic이다.
+  * `/scan`은 TurtleBot3의 LiDAR 거리 센서 데이터 topic이다.
+  * Phase 1의 turtlesim topic 구조가 Phase 2에서 Gazebo TurtleBot3 topic 구조로 확장되었다.
+* Related Files:
+
+  * `docs/phases/phase02_gazebo_turtlebot3.md`
+  * `docs/handoffs/MBROS2_Phase2_Handoff.md`
+
+---
+
+### P03-EXP-0001_rviz2_tf2_visualization_check
+
+- Date: 2026-06-02
+- Phase: Phase 3. RViz2 + TF2
+- Goal: Gazebo TurtleBot3에서 발행되는 `/tf`, `/tf_static`, `/robot_description`, `/scan`을 RViz2에서 시각화하고 TF tree 구조를 확인한다.
+- Environment:
+  - OS: Ubuntu 22.04 LTS
+  - ROS2: Humble Hawksbill
+  - Gazebo: Gazebo Classic 11.10.2
+  - Robot: TurtleBot3 Burger
+  - Visualization: RViz2
+  - Remote GUI: NoMachine
+- Command:
+  - `ros2 launch turtlebot3_gazebo empty_world.launch.py`
+  - `ros2 topic list | grep -E "cmd_vel|odom|scan|tf"`
+  - `ros2 topic info /tf`
+  - `ros2 topic info /tf_static`
+  - `rviz2`
+  - `ros2 topic echo /scan --once --field ranges | head -n 20`
+  - `ros2 run tf2_tools view_frames`
+  - `ros2 run tf2_ros tf2_echo odom base_footprint`
+  - `ros2 run tf2_ros tf2_echo base_link base_scan`
+  - `ros2 run turtlebot3_teleop teleop_keyboard`
+- Topics:
+  - `/cmd_vel`
+  - `/odom`
+  - `/scan`
+  - `/tf`
+  - `/tf_static`
+  - `/robot_description`
+- Result:
+  - TurtleBot3 Burger spawn 성공
+  - `/cmd_vel`, `/odom`, `/scan`, `/tf`, `/tf_static` topic 확인
+  - RViz2에서 Fixed Frame을 `odom`으로 설정
+  - TF display 표시 성공
+  - RobotModel display 표시 성공
+  - LaserScan display를 `/scan`에 연결 성공
+  - empty_world 환경에서 `/scan` ranges가 `inf` 위주로 나오는 것 확인
+  - `view_frames`로 TF tree PDF 생성 성공
+  - `tf2_echo`로 `odom → base_footprint`, `base_link → base_scan` transform 확인
+  - teleop 이동 중 `odom → base_footprint` transform 변화 확인
+- Success: Yes
+- Failure Type:
+  - None for Phase goal
+  - Related GUI issue: `gzclient_camera_assertion_failed`
+- Notes:
+  - Gazebo GUI인 `gzclient`가 crash 되었지만, `gzserver`와 ROS2 topic은 정상 동작했다.
+  - Phase 3는 Gazebo GUI가 아니라 RViz2 중심으로 진행 가능했다.
+  - `empty_world`에서는 LiDAR가 감지할 벽이나 장애물이 거의 없어 `/scan` ranges가 `inf` 위주로 출력될 수 있다.
+  - Phase 4 SLAM에서는 `/scan`, `/tf`, `/tf_static`, `odom`, `map` 관계가 핵심이 될 예정이다.
+- Related Files:
+  - `docs/phases/phase03_rviz2_tf2.md`
+  - `notes/phase_summaries/phase03_rviz2_tf2_summary.md`
+  - `notes/troubleshooting.md`
+  - `docs/handoffs/MBROS2_Phase3_Handoff.md`

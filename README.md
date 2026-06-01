@@ -21,8 +21,8 @@ ROS2와 Gazebo 기반으로 TurtleBot3 주행, SLAM/Nav2, rosbag2 로그 분석,
 ### Phase map
 - [x] Phase 0. Project setup
 - [x] Phase 1. ROS2 basics
-- [ ] Phase 2. Gazebo + TurtleBot3
-- [ ] Phase 3. RViz2 + TF2
+- [x] Phase 2. Gazebo + TurtleBot3
+- [x] Phase 3. RViz2 + TF2
 - [ ] Phase 4. SLAM
 - [ ] Phase 5. Navigation2
 - [ ] Phase 6. rosbag2 logging
@@ -170,4 +170,154 @@ P05-FAIL-0001_goal_unreachable
 /image_raw
 /camera_info
 /detection_result
+```
+
+### Result
+
+#### Phase 1. ROS2 basics
+
+Phase 1에서는 ROS2의 기본 실행 흐름을 turtlesim 기반으로 확인했다.
+
+완료한 내용:
+
+* `missionbot_basic` Python ROS2 패키지 생성
+* `/turtle1/pose` topic 구독 노드 작성
+* `/turtle1/cmd_vel` topic 발행 노드 작성
+* `geometry_msgs/msg/Twist` 메시지 발행 확인
+* `/clear`, `/spawn` service 호출 확인
+* `turtlesim_pubsub.launch.py` 작성
+* `ros2 run`, `ros2 launch`, `rqt_graph` 확인
+* build 후 `source install/setup.bash`를 해야 직접 만든 패키지를 현재 터미널이 인식한다는 점 확인
+
+Phase 1 완료 의미:
+
+```text
+패키지 생성
+→ 노드 작성
+→ setup.py 등록
+→ colcon build
+→ source install/setup.bash
+→ ros2 run 실행
+→ topic 확인
+→ service 호출
+→ launch 실행
+→ rqt_graph 확인
+```
+
+---
+
+#### Phase 2. Gazebo + TurtleBot3
+
+Phase 2에서는 turtlesim이 아니라 Gazebo 환경의 TurtleBot3 Burger를 실행하고, 실제 이동로봇 시뮬레이션에서 사용되는 핵심 topic 구조를 확인했다.
+
+완료한 내용:
+
+* ROS2 Humble 환경 확인
+* `TURTLEBOT3_MODEL=burger` 확인
+* `turtlebot3_gazebo`, `turtlebot3_teleop` 패키지 인식 확인
+* `ros2 launch turtlebot3_gazebo empty_world.launch.py` 실행
+* TurtleBot3 Burger spawn 확인
+* `gzclient` crash 발생 후 `gzclient --verbose`로 GUI 재연결
+* `/cmd_vel` topic 확인
+* `teleop_keyboard`로 TurtleBot3 이동 확인
+* `/cmd_vel`의 `geometry_msgs/msg/Twist` 메시지 확인
+* `/odom`의 `nav_msgs/msg/Odometry` 메시지 확인
+* TurtleBot3 이동 전후 `/odom` position 값 변화 확인
+* `/scan`의 `sensor_msgs/msg/LaserScan` 메시지 확인
+* `rqt_graph`로 `/teleop_keyboard → /cmd_vel → Gazebo/TurtleBot3` 연결 확인
+
+Phase 2 완료 의미:
+
+```text
+Gazebo launch
+→ TurtleBot3 spawn
+→ /cmd_vel 명령
+→ teleop 이동
+→ /odom 위치 변화 확인
+→ /scan LiDAR 데이터 확인
+→ rqt_graph 연결 확인
+```
+
+Phase 1과 Phase 2의 연결:
+
+```text
+/turtle1/cmd_vel
+→ /cmd_vel
+
+/turtle1/pose
+→ /odom
+
+turtlesim_node
+→ Gazebo TurtleBot3 plugin
+
+rqt_graph 확인
+→ TurtleBot3 node-topic graph 확인
+```
+
+다음 단계:
+
+```text
+Phase 3. RViz2 + TF2
+```
+
+Phase 3에서는 Gazebo에서 실행 중인 TurtleBot3를 RViz2에서 시각화하고, `/tf`, `/tf_static`을 통해 로봇 좌표계 구조를 확인한다.
+
+
+
+#### Phase 3. RViz2 + TF2 완료
+
+Phase 3에서는 Gazebo에서 실행 중인 TurtleBot3 Burger를 RViz2에서 시각화하고, TF2를 통해 로봇 좌표계 구조를 확인했다.
+
+완료한 내용:
+
+```text
+[x] RViz2 실행
+[x] Fixed Frame을 odom으로 설정
+[x] TF display 추가
+[x] RobotModel display 추가
+[x] LaserScan display 추가
+[x] /cmd_vel, /odom, /scan, /tf, /tf_static 확인
+[x] /scan ranges가 empty_world에서 inf 위주로 나오는 것 확인
+[x] view_frames로 TF tree 확인
+[x] tf2_echo로 odom → base_footprint transform 확인
+[x] tf2_echo로 base_link → base_scan transform 확인
+[x] teleop 이동 중 odom → base_footprint transform 변화 확인
+```
+
+핵심 연결:
+
+```text
+Gazebo TurtleBot3
+→ /cmd_vel
+→ /odom
+→ /scan
+→ /tf, /tf_static
+→ RViz2
+```
+
+확인한 주요 frame:
+
+```text
+odom
+base_footprint
+base_link
+base_scan
+imu_link
+wheel_left_link
+wheel_right_link
+caster_back_link
+```
+
+주요 이슈:
+
+```text
+gzclient crash가 반복되었지만, TurtleBot3 spawn과 ROS2 topic은 정상 동작했다.
+따라서 Gazebo GUI가 아니라 RViz2 중심으로 Phase 3를 진행했다.
+```
+
+다음 단계:
+
+```text
+Phase 4. SLAM
+→ /scan과 TF를 기반으로 SLAM Toolbox에서 지도 생성을 진행한다.
 ```
