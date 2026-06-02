@@ -434,3 +434,78 @@
   - `notes/phase_summaries/phase03_rviz2_tf2_summary.md`
   - `notes/troubleshooting.md`
   - `docs/handoffs/MBROS2_Phase3_Handoff.md`
+
+  ---
+
+### P04-EXP-0001_slam_toolbox_mapping
+
+* Date: 2026-06-02
+* Phase: Phase 4. SLAM
+* Goal: TurtleBot3 Gazebo World 환경에서 SLAM Toolbox를 실행하고, `/scan`과 TF 정보를 기반으로 지도를 생성한 뒤 파일로 저장한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Simulator: Gazebo Classic
+  * Robot: TurtleBot3 Burger
+  * Visualization: RViz2
+  * SLAM: slam_toolbox
+* Command:
+
+```bash
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+```
+
+```bash
+ros2 launch slam_toolbox online_async_launch.py use_sim_time:=True
+```
+
+```bash
+rviz2
+```
+
+```bash
+ros2 run turtlebot3_teleop teleop_keyboard
+```
+
+```bash
+ros2 run nav2_map_server map_saver_cli -f maps/phase04_slam/tb3_world_slam_map_01
+```
+
+* Topics:
+
+  * `/scan`
+  * `/odom`
+  * `/tf`
+  * `/tf_static`
+  * `/map`
+  * `/map_metadata`
+  * `/slam_toolbox/scan_visualization`
+  * `/cmd_vel`
+* Result:
+
+  * SLAM Toolbox 실행 후 `/slam_toolbox` node가 생성되었다.
+  * `/map` topic이 생성되었고, 타입이 `nav_msgs/msg/OccupancyGrid`인 것을 확인했다.
+  * RViz2에서 Fixed Frame을 `map`으로 설정하고 Map display를 `/map`에 연결했다.
+  * TF, RobotModel, LaserScan, Map display를 함께 표시했다.
+  * teleop_keyboard로 TurtleBot3를 천천히 이동시키며 RViz2에서 지도가 확장되는 것을 확인했다.
+  * `map_saver_cli`를 사용해 생성된 지도를 `.pgm`, `.yaml` 파일로 저장했다.
+  * 저장된 지도 파일:
+
+    * `maps/phase04_slam/tb3_world_slam_map_01.pgm`
+    * `maps/phase04_slam/tb3_world_slam_map_01.yaml`
+  * `.yaml` 파일에서 `image`, `mode`, `resolution`, `origin`, `occupied_thresh`, `free_thresh` 값을 확인했다.
+  * `.pgm` 파일이 Netpbm PGM 이미지 파일로 인식되는 것을 확인했다.
+* Success: Yes
+* Failure Type: None
+* Notes:
+
+  * Gazebo 기반 실습에서는 SLAM Toolbox 실행 시 `use_sim_time:=True` 설정이 중요하다.
+  * SLAM 지도 생성은 `/scan`만으로 되는 것이 아니라, `/scan` 데이터가 TF tree의 `base_scan`, `base_link`, `base_footprint`, `odom`, `map` 관계와 함께 해석되어야 한다.
+  * RViz2에서 SLAM 결과를 확인할 때는 Fixed Frame을 `map`으로 설정해야 한다.
+  * 로봇을 너무 빠르게 움직이기보다 천천히 이동하고 회전해야 지도가 안정적으로 확장된다.
+  * 지도 저장 결과는 `.pgm` 이미지 파일과 `.yaml` 설정 파일이 한 쌍으로 생성된다.
+* Related Files:
+
+  * `maps/phase04_slam/tb3_world_slam_map_01.pgm`
+  * `maps/phase04_slam/tb3_world_slam_map_01.yaml`

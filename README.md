@@ -23,7 +23,7 @@ ROS2와 Gazebo 기반으로 TurtleBot3 주행, SLAM/Nav2, rosbag2 로그 분석,
 - [x] Phase 1. ROS2 basics
 - [x] Phase 2. Gazebo + TurtleBot3
 - [x] Phase 3. RViz2 + TF2
-- [ ] Phase 4. SLAM
+- [X] Phase 4. SLAM
 - [ ] Phase 5. Navigation2
 - [ ] Phase 6. rosbag2 logging
 - [ ] Phase 7. Failure analysis
@@ -320,4 +320,96 @@ gzclient crash가 반복되었지만, TurtleBot3 spawn과 ROS2 topic은 정상 �
 ```text
 Phase 4. SLAM
 → /scan과 TF를 기반으로 SLAM Toolbox에서 지도 생성을 진행한다.
+```
+
+---
+
+### Result
+
+#### Phase 4 Summary - SLAM
+
+Phase 4에서는 TurtleBot3 Gazebo World 환경에서 SLAM Toolbox를 실행하고, LiDAR `/scan` 데이터와 TF 정보를 기반으로 지도를 생성했다.
+
+이번 Phase의 핵심 목표는 단순히 `/scan`, `/tf`, `/odom` topic을 확인하는 것을 넘어, SLAM Toolbox가 실제로 `/map` topic을 생성하고 RViz2에서 지도 형태로 시각화되는지 확인하는 것이었다.
+
+완료한 작업은 다음과 같다.
+
+```text
+[x] SLAM Toolbox 패키지 인식 확인
+[x] TurtleBot3 Gazebo World 실행
+[x] `/scan`, `/odom`, `/tf`, `/tf_static` topic 확인
+[x] `slam_toolbox` online async 모드 실행
+[x] `use_sim_time:=True` 적용
+[x] `/slam_toolbox` node 실행 확인
+[x] `/map` topic 생성 확인
+[x] `/map` type이 `nav_msgs/msg/OccupancyGrid`인지 확인
+[x] RViz2 Fixed Frame을 `map`으로 설정
+[x] RViz2에서 Map display를 `/map`에 연결
+[x] TF, RobotModel, LaserScan, Map을 함께 시각화
+[x] teleop_keyboard로 TurtleBot3를 천천히 이동시키며 지도 확장 확인
+[x] `map_saver_cli`를 사용해 SLAM 지도 저장
+[x] `.pgm`, `.yaml` 지도 파일 생성 확인
+[x] 저장된 `.yaml` 설정 파일 확인
+[x] 저장된 `.pgm` 파일이 실제 PGM 이미지로 인식되는 것 확인
+```
+
+실행한 주요 명령어는 다음과 같다.
+
+```bash
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+```
+
+```bash
+ros2 launch slam_toolbox online_async_launch.py use_sim_time:=True
+```
+
+```bash
+rviz2
+```
+
+```bash
+ros2 run turtlebot3_teleop teleop_keyboard
+```
+
+```bash
+ros2 run nav2_map_server map_saver_cli -f maps/phase04_slam/tb3_world_slam_map_01
+```
+
+저장된 지도 파일은 다음 위치에 생성되었다.
+
+```text
+maps/phase04_slam/tb3_world_slam_map_01.pgm
+maps/phase04_slam/tb3_world_slam_map_01.yaml
+```
+
+저장된 지도 설정 파일에는 다음과 같은 정보가 포함되었다.
+
+```yaml
+image: tb3_world_slam_map_01.pgm
+mode: trinary
+resolution: 0.05
+origin: [-2.94, -2.57, 0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.25
+```
+
+이번 Phase를 통해 확인한 핵심 흐름은 다음과 같다.
+
+```text
+Gazebo TurtleBot3 World
+→ `/scan`
+→ `/tf`, `/tf_static`
+→ SLAM Toolbox
+→ `/map`
+→ RViz2 Map 시각화
+→ map_saver_cli 지도 저장
+```
+
+이번 Phase의 의미는 다음과 같다.
+
+```text
+Phase 3에서는 RViz2와 TF2를 통해 센서와 좌표계를 확인했다.
+Phase 4에서는 그 센서 데이터와 좌표계 정보를 SLAM Toolbox에 연결해 실제 지도를 생성하고 저장했다.
+이 지도는 다음 Phase인 Navigation2에서 목표 지점 이동을 위한 기반 map으로 사용될 수 있다.
 ```
