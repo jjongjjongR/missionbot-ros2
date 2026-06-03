@@ -435,7 +435,7 @@
   - `notes/troubleshooting.md`
   - `docs/handoffs/MBROS2_Phase3_Handoff.md`
 
-  ---
+---
 
 ### P04-EXP-0001_slam_toolbox_mapping
 
@@ -509,3 +509,315 @@ ros2 run nav2_map_server map_saver_cli -f maps/phase04_slam/tb3_world_slam_map_0
 
   * `maps/phase04_slam/tb3_world_slam_map_01.pgm`
   * `maps/phase04_slam/tb3_world_slam_map_01.yaml`
+
+---
+
+### P05-EXP-0001_nav2_map_based_goal_navigation
+
+* Date: 2026-06-02
+
+* Phase: Phase 5. Navigation2
+
+* Goal: Phase 4에서 저장한 SLAM map을 기반으로 Navigation2를 실행하고, RViz2의 2D Pose Estimate와 2D Nav Goal을 사용해 TurtleBot3가 목표 지점까지 이동하는지 확인한다.
+
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Simulator: Gazebo Classic
+  * Robot: TurtleBot3 Burger
+  * Visualization: RViz2
+  * SLAM map: `maps/phase04_slam/tb3_world_slam_map_01.yaml`
+  * Navigation: Navigation2
+
+* Command:
+
+```bash
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+```
+
+```bash
+cd ~/projects/missionbot-ros2
+MAP_FILE=$(pwd)/maps/phase04_slam/tb3_world_slam_map_01.yaml
+ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True map:=$MAP_FILE
+```
+
+```bash
+ros2 node list | grep -E "map|amcl|planner|controller|bt|behavior|lifecycle|waypoint"
+```
+
+```bash
+ros2 topic list | grep -E "map|amcl|plan|cmd_vel|costmap|particlecloud"
+```
+
+```bash
+ros2 topic info /map
+```
+
+```bash
+ros2 topic echo /amcl_pose --once
+```
+
+```bash
+ros2 run tf2_ros tf2_echo map odom
+```
+
+```bash
+ros2 action list | grep navigate
+ros2 action info /navigate_to_pose
+```
+
+```bash
+ros2 topic echo /cmd_vel
+```
+
+```bash
+ros2 topic echo /plan --once
+```
+
+```bash
+ros2 lifecycle get /map_server
+ros2 lifecycle get /amcl
+ros2 lifecycle get /planner_server
+ros2 lifecycle get /controller_server
+ros2 lifecycle get /bt_navigator
+ros2 lifecycle get /behavior_server
+ros2 lifecycle get /waypoint_follower
+```
+
+* Topics:
+
+  * `/map`
+  * `/map_updates`
+  * `/amcl_pose`
+  * `/plan`
+  * `/plan_smoothed`
+  * `/local_plan`
+  * `/cmd_vel`
+  * `/cmd_vel_nav`
+  * `/global_costmap/costmap`
+  * `/local_costmap/costmap`
+  * `/odom`
+  * `/scan`
+  * `/tf`
+  * `/tf_static`
+  * `/initialpose`
+  * `/goal_pose`
+
+* Result:
+
+  * TurtleBot3 Gazebo World를 실행하고 `/clock`, `/cmd_vel`, `/odom`, `/scan`, `/tf`, `/tf_static` topic이 정상적으로 발행되는 것을 확인했다.
+  * Phase 4에서 저장한 map yaml 파일을 `MAP_FILE` 변수로 지정했다.
+  * `turtlebot3_navigation2 navigation2.launch.py`를 실행하면서 `use_sim_time:=True`와 `map:=$MAP_FILE`을 전달했다.
+  * `/map` topic이 생성되었고, 타입이 `nav_msgs/msg/OccupancyGrid`인 것을 확인했다.
+  * `/amcl`, `/map_server`, `/planner_server`, `/controller_server`, `/bt_navigator`, `/behavior_server`, `/waypoint_follower` node가 실행되는 것을 확인했다.
+  * RViz2에서 Fixed Frame을 `map`으로 설정하고 Map, RobotModel, TF, LaserScan display를 확인했다.
+  * 초기에는 `map → odom` transform이 없어 costmap에서 transform timeout 로그가 발생했다.
+  * RViz2의 2D Pose Estimate를 사용해 AMCL 초기 위치를 지정했다.
+  * `/amcl_pose` topic이 출력되는 것을 확인했다.
+  * `tf2_echo map odom` 명령으로 `map → odom` transform이 생성되는 것을 확인했다.
+  * RViz2의 2D Nav Goal을 사용해 목표 지점을 지정했다.
+  * TurtleBot3가 목표 지점 방향으로 이동하는 것을 확인했다.
+  * `/plan` topic을 통해 global path가 생성되는 것을 확인했다.
+  * `/cmd_vel` topic을 통해 TurtleBot3 이동 명령이 발행되는 것을 확인했다.
+  * Nav2 주요 lifecycle node가 `active [3]` 상태인 것을 확인했다.
+
+* Success: Yes
+
+* Failure Type: None
+
+* Notes:
+
+  * Navigation2는 저장된 map을 기반으로 동작하므로, `.yaml`과 `.pgm` 지도 파일이 함께 존재해야 한다.
+  * Gazebo 기반 실습에서는 Navigation2 실행 시 `use_sim_time:=True` 설정이 중요하다.
+  * Navigation2 실행 직후 `map → odom` transform이 없다는 로그가 나올 수 있다.
+  * 이 로그는 AMCL 초기 위치가 아직 지정되지 않은 상태에서 발생할 수 있으며, RViz2의 2D Pose Estimate를 통해 초기 위치를 지정하면 해결된다.
+  * 2D Pose Estimate는 AMCL에게 map 위에서 로봇의 초기 위치와 방향을 알려주는 과정이다.
+  * 2D Nav Goal은 RViz2에서 목표 지점을 지정하고, 내부적으로 `/navigate_to_pose` action 요청을 보내는 과정이다.
+  * Navigation2의 핵심 흐름은 `map_server → amcl → planner_server → controller_server → /cmd_vel → TurtleBot3 이동`으로 정리할 수 있다.
+  * LaserScan이 map과 완벽히 겹치지 않을 수 있으므로, 목표 이동 전에는 2D Pose Estimate로 위치와 방향을 대략 맞춰야 한다.
+  * 주요 lifecycle node가 `active [3]` 상태이면 해당 Nav2 구성 요소가 실제 동작 가능한 상태로 전환된 것이다.
+
+* Related Files:
+
+  * `maps/phase04_slam/tb3_world_slam_map_01.pgm`
+  * `maps/phase04_slam/tb3_world_slam_map_01.yaml`
+  * `docs/phases/phase05_navigation2.md`
+  * `notes/phase_summaries/phase05_navigation2_summary.md`
+  * `docs/handoffs/MBROS2_Phase5_Handoff.md`
+
+### P06-EXP-0001_nav2_goal_rosbag_record
+
+* Date: 2026-06-03
+* Phase: Phase 6. rosbag2 logging
+* Goal: Navigation2 목표 이동 중 핵심 ROS2 topic을 rosbag2로 기록하고, 저장된 bag 파일에 필요한 topic과 메시지가 정상적으로 포함되는지 확인한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Simulator: Gazebo Classic
+  * Robot: TurtleBot3 Burger
+  * Navigation: Navigation2
+  * Map: maps/phase04_slam/tb3_world_slam_map_01.yaml
+* Command:
+
+```bash
+cd ~/projects/missionbot-ros2
+
+ros2 bag record \
+  /scan \
+  /odom \
+  /tf \
+  /tf_static \
+  /cmd_vel \
+  /amcl_pose \
+  /plan \
+  -o rosbags/phase06_logging/p06_nav2_goal_01
+```
+
+* Topics:
+
+  * /scan
+  * /odom
+  * /tf
+  * /tf_static
+  * /cmd_vel
+  * /amcl_pose
+  * /plan
+
+* Result:
+
+  * rosbag2 record 명령어로 Navigation2 주행 중 핵심 topic 기록에 성공했다.
+  * 기록된 bag 파일은 `rosbags/phase06_logging/p06_nav2_goal_01` 경로에 저장되었다.
+  * `ros2 bag info`와 `metadata.yaml` 확인 결과, 총 164.287초 동안 14,935개의 메시지가 기록되었다.
+  * bag 저장 방식은 sqlite3이며, 실제 데이터 파일은 `p06_nav2_goal_01_0.db3`로 생성되었다.
+
+* Recorded Bag Summary:
+
+  * Bag path: rosbags/phase06_logging/p06_nav2_goal_01
+  * Storage id: sqlite3
+  * Duration: 164.287617550s
+  * Message count: 14,935
+  * Bag size: 8.8 MiB
+  * Data file: p06_nav2_goal_01_0.db3
+  * Metadata file: metadata.yaml
+
+* Topic Message Counts:
+
+  * /scan: 793
+  * /odom: 4,664
+  * /tf_static: 1
+  * /cmd_vel: 840
+  * /tf: 8,557
+  * /plan: 41
+  * /amcl_pose: 39
+
+* Success: Yes
+
+* Failure Type: None
+
+* Notes:
+
+  * `/scan`, `/odom`, `/tf`, `/tf_static`, `/cmd_vel`, `/amcl_pose`, `/plan`이 모두 정상적으로 기록되었다.
+  * `/tf_static`은 고정 좌표계 정보이므로 메시지 수가 1개만 기록되어도 정상이다.
+  * `/cmd_vel`이 840개 기록되었으므로 Navigation2가 실제 주행 속도 명령을 발행한 것을 확인할 수 있다.
+  * `/plan`이 41개 기록되었으므로 목표 이동 중 전역 경로가 생성된 것을 확인할 수 있다.
+  * `/amcl_pose`가 39개 기록되었으므로 AMCL 기반 위치 추정 정보도 함께 저장되었다.
+  * 이번 실험을 통해 MissionBot-ROS2에서 Navigation2 주행 로그를 rosbag2로 저장하는 기본 흐름을 검증했다.
+
+* Related Files:
+
+  * rosbags/phase06_logging/p06_nav2_goal_01
+  * rosbags/phase06_logging/p06_nav2_goal_01/metadata.yaml
+  * rosbags/phase06_logging/p06_nav2_goal_01/p06_nav2_goal_01_0.db3
+
+---
+
+### P06-EXP-0001_nav2_goal_rosbag_record
+
+* Date: 2026-06-03
+* Phase: Phase 6. rosbag2 logging
+* Goal: Navigation2 목표 이동 중 핵심 ROS2 topic을 rosbag2로 기록하고, 저장된 bag 파일에 필요한 topic과 메시지가 정상적으로 포함되는지 확인한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Simulator: Gazebo Classic
+  * Robot: TurtleBot3 Burger
+  * Navigation: Navigation2
+  * Map: maps/phase04_slam/tb3_world_slam_map_01.yaml
+* Command:
+
+```bash
+cd ~/projects/missionbot-ros2
+
+ros2 bag record \
+  /scan \
+  /odom \
+  /tf \
+  /tf_static \
+  /cmd_vel \
+  /amcl_pose \
+  /plan \
+  -o rosbags/phase06_logging/p06_nav2_goal_01
+```
+
+* Topics:
+
+  * /scan
+  * /odom
+  * /tf
+  * /tf_static
+  * /cmd_vel
+  * /amcl_pose
+  * /plan
+
+* Result:
+
+  * rosbag2 record 명령어로 Navigation2 주행 중 핵심 topic 기록에 성공했다.
+  * 기록된 bag 파일은 `rosbags/phase06_logging/p06_nav2_goal_01` 경로에 저장되었다.
+  * `ros2 bag info`와 `metadata.yaml` 확인 결과, 총 164.287초 동안 14,935개의 메시지가 기록되었다.
+  * bag 저장 방식은 sqlite3이며, 실제 데이터 파일은 `p06_nav2_goal_01_0.db3`로 생성되었다.
+  * 이후 `ros2 bag play`를 통해 기록된 topic이 다시 발행되는 것을 확인했다.
+  * RViz2에서 playback 데이터를 시각화하여 `/scan`, `/odom`, `/tf`, `/plan`이 정상적으로 표시되는 것을 확인했다.
+
+* Recorded Bag Summary:
+
+  * Bag path: rosbags/phase06_logging/p06_nav2_goal_01
+  * Storage id: sqlite3
+  * Duration: 164.287617550s
+  * Message count: 14,935
+  * Bag size: 8.8 MiB
+  * Data file: p06_nav2_goal_01_0.db3
+  * Metadata file: metadata.yaml
+
+* Topic Message Counts:
+
+  * /scan: 793
+  * /odom: 4,664
+  * /tf_static: 1
+  * /cmd_vel: 840
+  * /tf: 8,557
+  * /plan: 41
+  * /amcl_pose: 39
+
+* Success: Yes
+
+* Failure Type: None
+
+* Notes:
+
+  * `/scan`, `/odom`, `/tf`, `/tf_static`, `/cmd_vel`, `/amcl_pose`, `/plan`이 모두 정상적으로 기록되었다.
+  * `/tf_static`은 고정 좌표계 정보이므로 메시지 수가 1개만 기록되어도 정상이다.
+  * `/cmd_vel`이 840개 기록되었으므로 Navigation2가 실제 주행 속도 명령을 발행한 것을 확인할 수 있다.
+  * `/plan`이 41개 기록되었으므로 목표 이동 중 전역 경로가 생성된 것을 확인할 수 있다.
+  * `/amcl_pose`가 39개 기록되었으므로 AMCL 기반 위치 추정 정보도 함께 저장되었다.
+  * `ros2 bag play`는 Gazebo 로봇을 실제로 다시 움직이는 것이 아니라, 저장된 ROS2 topic 메시지를 다시 발행하는 기능임을 확인했다.
+  * RViz2에서 Gazebo 기반 rosbag playback을 시각화할 때는 `use_sim_time:=true`와 `--clock` 옵션이 중요했다.
+  * 이번 실험을 통해 MissionBot-ROS2에서 Navigation2 주행 로그를 rosbag2로 저장하고 다시 확인하는 기본 흐름을 검증했다.
+
+* Related Files:
+
+  * rosbags/phase06_logging/p06_nav2_goal_01
+  * rosbags/phase06_logging/p06_nav2_goal_01/metadata.yaml
+  * rosbags/phase06_logging/p06_nav2_goal_01/p06_nav2_goal_01_0.db3

@@ -23,9 +23,9 @@ ROS2와 Gazebo 기반으로 TurtleBot3 주행, SLAM/Nav2, rosbag2 로그 분석,
 - [x] Phase 1. ROS2 basics
 - [x] Phase 2. Gazebo + TurtleBot3
 - [x] Phase 3. RViz2 + TF2
-- [X] Phase 4. SLAM
-- [ ] Phase 5. Navigation2
-- [ ] Phase 6. rosbag2 logging
+- [x] Phase 4. SLAM
+- [x] Phase 5. Navigation2
+- [x] Phase 6. rosbag2 logging
 - [ ] Phase 7. Failure analysis
 - [ ] Phase 8. Control basics
 - [ ] Phase 9. MoveIt2 basics
@@ -324,8 +324,6 @@ Phase 4. SLAM
 
 ---
 
-### Result
-
 #### Phase 4 Summary - SLAM
 
 Phase 4에서는 TurtleBot3 Gazebo World 환경에서 SLAM Toolbox를 실행하고, LiDAR `/scan` 데이터와 TF 정보를 기반으로 지도를 생성했다.
@@ -412,4 +410,253 @@ Gazebo TurtleBot3 World
 Phase 3에서는 RViz2와 TF2를 통해 센서와 좌표계를 확인했다.
 Phase 4에서는 그 센서 데이터와 좌표계 정보를 SLAM Toolbox에 연결해 실제 지도를 생성하고 저장했다.
 이 지도는 다음 Phase인 Navigation2에서 목표 지점 이동을 위한 기반 map으로 사용될 수 있다.
+```
+
+---
+
+#### Phase 5 Summary - Navigation2
+
+Phase 5에서는 Phase 4에서 생성한 SLAM 지도 파일을 기반으로 Navigation2를 실행하고, RViz2의 2D Pose Estimate와 2D Nav Goal을 사용해 TurtleBot3가 목표 지점까지 이동하는 흐름을 확인했다.
+
+이번 Phase의 핵심 목표는 단순히 Navigation2 패키지 실행 여부를 확인하는 것이 아니라, 저장된 map 위에서 AMCL 위치 추정, 경로 계획, 속도 명령 생성, 목표 지점 이동이 실제로 연결되는지 확인하는 것이었다.
+
+완료한 작업은 다음과 같다.
+
+```text
+[x] Navigation2 실행 전 환경 확인
+[x] `nav2_bringup`, `nav2_map_server`, `nav2_amcl` 패키지 인식 확인
+[x] `turtlebot3_navigation2` 패키지 인식 확인
+[x] Phase 4에서 저장한 map 파일 확인
+[x] TurtleBot3 Gazebo World 실행
+[x] `/clock`, `/cmd_vel`, `/odom`, `/scan`, `/tf`, `/tf_static` topic 확인
+[x] 저장된 map yaml 파일 절대 경로 설정
+[x] `turtlebot3_navigation2 navigation2.launch.py` 실행
+[x] `use_sim_time:=True` 적용
+[x] `/map` topic 생성 확인
+[x] `/map` type이 `nav_msgs/msg/OccupancyGrid`인지 확인
+[x] `/amcl`, `/map_server`, `/planner_server`, `/controller_server`, `/bt_navigator` node 확인
+[x] RViz2 Fixed Frame을 `map`으로 설정
+[x] RViz2에서 Map, RobotModel, TF, LaserScan display 확인
+[x] 2D Pose Estimate로 AMCL 초기 위치 지정
+[x] `/amcl_pose` topic 출력 확인
+[x] `map → odom` transform 생성 확인
+[x] 2D Nav Goal로 목표 지점 지정
+[x] TurtleBot3가 목표 지점 방향으로 이동하는 것 확인
+[x] `/plan` topic으로 global path 생성 확인
+[x] `/cmd_vel` topic으로 속도 명령 발행 확인
+[x] 주요 Nav2 lifecycle node가 `active [3]` 상태인지 확인
+```
+
+실행한 주요 명령어는 다음과 같다.
+
+```bash
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+```
+
+```bash
+cd ~/projects/missionbot-ros2
+MAP_FILE=$(pwd)/maps/phase04_slam/tb3_world_slam_map_01.yaml
+ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True map:=$MAP_FILE
+```
+
+```bash
+ros2 node list | grep -E "map|amcl|planner|controller|bt|behavior|lifecycle|waypoint"
+```
+
+```bash
+ros2 topic list | grep -E "map|amcl|plan|cmd_vel|costmap|particlecloud"
+```
+
+```bash
+ros2 topic info /map
+```
+
+```bash
+ros2 topic echo /amcl_pose --once
+```
+
+```bash
+ros2 run tf2_ros tf2_echo map odom
+```
+
+```bash
+ros2 action list | grep navigate
+ros2 action info /navigate_to_pose
+```
+
+```bash
+ros2 topic echo /cmd_vel
+```
+
+```bash
+ros2 topic echo /plan --once
+```
+
+```bash
+ros2 lifecycle get /map_server
+ros2 lifecycle get /amcl
+ros2 lifecycle get /planner_server
+ros2 lifecycle get /controller_server
+ros2 lifecycle get /bt_navigator
+ros2 lifecycle get /behavior_server
+ros2 lifecycle get /waypoint_follower
+```
+
+사용한 지도 파일은 다음 위치에 있다.
+
+```text
+maps/phase04_slam/tb3_world_slam_map_01.pgm
+maps/phase04_slam/tb3_world_slam_map_01.yaml
+```
+
+이번 Phase에서 확인한 주요 node는 다음과 같다.
+
+```text
+/map_server
+/amcl
+/planner_server
+/controller_server
+/bt_navigator
+/behavior_server
+/waypoint_follower
+/lifecycle_manager_localization
+/lifecycle_manager_navigation
+/global_costmap/global_costmap
+/local_costmap/local_costmap
+```
+
+이번 Phase에서 확인한 주요 topic은 다음과 같다.
+
+```text
+/map
+/amcl_pose
+/plan
+/plan_smoothed
+/local_plan
+/cmd_vel
+/cmd_vel_nav
+/global_costmap/costmap
+/local_costmap/costmap
+/odom
+/scan
+/tf
+/tf_static
+/initialpose
+/goal_pose
+```
+
+이번 Phase를 통해 확인한 핵심 흐름은 다음과 같다.
+
+```text
+Gazebo TurtleBot3 World
+→ `/odom`, `/scan`, `/tf`, `/clock`
+→ 저장된 map yaml 로드
+→ Navigation2 실행
+→ `/map`
+→ AMCL 초기 위치 추정
+→ `map → odom` transform 생성
+→ RViz2 2D Nav Goal
+→ planner_server 경로 생성
+→ controller_server 속도 명령 생성
+→ `/cmd_vel`
+→ TurtleBot3 목표 지점 이동
+```
+
+이번 Phase의 의미는 다음과 같다.
+
+```text
+Phase 4에서는 SLAM Toolbox를 사용해 TurtleBot3 World 지도를 생성하고 저장했다.
+Phase 5에서는 그 저장된 지도를 Navigation2에 연결해, 로봇이 map 위에서 현재 위치를 추정하고 목표 지점까지 이동하는 흐름을 확인했다.
+
+이를 통해 단순한 수동 조작을 넘어, 저장된 지도 기반의 자율 주행 구조를 처음으로 검증했다.
+이 구조는 이후 rosbag2 logging, 실패 분석, 제어 기초, 모바일 매니퓰레이션에서 로봇이 작업 위치까지 이동하는 기반이 된다.
+```
+
+---
+
+#### Phase 6 Summary - rosbag2 Logging
+
+Phase 6에서는 Navigation2 주행 중 발생하는 주요 ROS2 topic을 `rosbag2`로 기록하고, 저장된 bag 파일을 다시 재생하여 RViz2에서 시각화하는 흐름을 확인했다.
+
+이번 Phase의 핵심 목표는 단순히 bag 파일을 생성하는 것이 아니라, Navigation2 기반 목표 이동 중 발생하는 센서 데이터, 위치 추정, 좌표계, 속도 명령, 경로 계획 데이터를 함께 저장하고, 이후 다시 재생하여 분석 가능한 형태로 남기는 것이었다.
+
+완료한 작업은 다음과 같다.
+
+```text
+[x] rosbag2 기록 전 환경 확인
+[x] ros2 bag 명령어 인식 확인
+[x] rosbag2 관련 패키지 확인
+[x] TurtleBot3 Gazebo World 재실행
+[x] Navigation2 재실행
+[x] RViz2에서 2D Pose Estimate로 초기 위치 지정
+[x] 기록 대상 topic 선정
+[x] /scan topic 기록
+[x] /odom topic 기록
+[x] /tf topic 기록
+[x] /tf_static topic 기록
+[x] /cmd_vel topic 기록
+[x] /amcl_pose topic 기록
+[x] /plan topic 기록
+[x] ros2 bag record로 Navigation2 주행 로그 저장
+[x] ros2 bag info로 bag 파일 정보 확인
+[x] metadata.yaml로 기록 파일 구조 확인
+[x] ros2 bag play로 저장된 topic 재생 확인
+[x] /odom 메시지 echo로 playback 확인
+[x] --topics 옵션으로 일부 topic 선택 재생 확인
+[x] --rate 옵션으로 playback 속도 조절 확인
+[x] RViz2에서 rosbag playback 데이터 시각화 확인
+[x] use_sim_time=true와 --clock 옵션 필요성 확인
+```
+
+기록한 rosbag 결과는 다음과 같다.
+
+```text
+Bag path: rosbags/phase06_logging/p06_nav2_goal_01
+Storage id: sqlite3
+Duration: 164.287617550s
+Message count: 14,935
+Bag size: 8.8 MiB
+Data file: p06_nav2_goal_01_0.db3
+Metadata file: metadata.yaml
+```
+
+기록된 topic별 메시지 수는 다음과 같다.
+
+```text
+/scan       793
+/odom       4,664
+/tf_static  1
+/cmd_vel    840
+/tf         8,557
+/plan       41
+/amcl_pose  39
+```
+
+이번 Phase를 통해 MissionBot-ROS2는 Navigation2 주행 결과를 단순히 눈으로 확인하는 단계를 넘어, 센서와 주행 데이터를 rosbag2 파일로 저장하고 다시 재생할 수 있는 구조를 갖추었다.
+
+특히 RViz2 playback 과정에서 Gazebo 기반 기록 데이터는 simulation time 기준으로 저장되므로, RViz2를 다음처럼 실행해야 안정적으로 시각화된다는 점을 확인했다.
+
+```bash
+rviz2 --ros-args -p use_sim_time:=true
+```
+
+또한 bag 재생 시 `/clock`을 함께 발행하기 위해 다음 옵션을 사용했다.
+
+```bash
+ros2 bag play rosbags/phase06_logging/p06_nav2_goal_01 --rate 0.5 --clock
+```
+
+이를 통해 `/scan`, `/odom`, `/tf`, `/plan`이 RViz2에서 정상적으로 표시되는 것을 확인했다.
+
+Phase 6 완료 의미는 다음과 같다.
+
+```text
+Navigation2 주행
+→ 핵심 ROS2 topic 기록
+→ bag 파일 저장
+→ bag 정보 확인
+→ playback
+→ RViz2 시각화
+
+위 흐름을 성공적으로 검증했다.
 ```
