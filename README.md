@@ -26,7 +26,7 @@ ROS2와 Gazebo 기반으로 TurtleBot3 주행, SLAM/Nav2, rosbag2 로그 분석,
 - [x] Phase 4. SLAM
 - [x] Phase 5. Navigation2
 - [x] Phase 6. rosbag2 logging
-- [ ] Phase 7. Failure analysis
+- [x] Phase 7. Failure analysis
 - [ ] Phase 8. Control basics
 - [ ] Phase 9. MoveIt2 basics
 - [ ] Phase 10. LLM/VLM extension
@@ -659,4 +659,120 @@ Navigation2 주행
 → RViz2 시각화
 
 위 흐름을 성공적으로 검증했다.
+```
+
+---
+
+#### Phase 7 Summary - Failure Analysis
+
+Phase 7에서는 Phase 6에서 기록한 정상 Navigation2 주행 rosbag을 baseline으로 삼고, 실패 상황을 topic 증거 기반으로 분류하는 Failure Analysis 흐름을 정리했다.
+
+이번 Phase의 핵심 목표는 단순히 “로봇이 실패했다”라고 기록하는 것이 아니라, `/plan`, `/cmd_vel`, `/odom`, `/amcl_pose`, `/scan`, `/tf` 같은 ROS2 topic 기록을 근거로 실패 원인을 판단하는 것이었다.
+
+먼저 정상 주행 bag을 기준 데이터로 확인했다.
+
+```text
+Baseline Bag:
+rosbags/phase06_logging/p06_nav2_goal_01
+```
+
+정상 bag에는 다음 topic이 기록되어 있었다.
+
+```text
+/scan
+/odom
+/tf
+/tf_static
+/cmd_vel
+/amcl_pose
+/plan
+```
+
+이후 실패 유형 후보를 정의하고, 각 실패 유형을 어떤 topic 증거로 판단할지 정리했다.
+
+대표 실패 유형은 다음과 같다.
+
+```text
+goal_unreachable
+path_planning_failure
+localization_failure
+obstacle_blocked
+control_oscillation
+sensor_missing
+timeout
+unknown
+```
+
+이번 Phase에서는 첫 실패 사례로 `P07-FAIL-0001_unreachable_goal_test`를 기록했다.
+
+실패 실험에서는 RViz2에서 장애물 내부 또는 도달하기 어려운 위치를 2D Nav Goal로 지정했고, TurtleBot3가 목표 근처까지 접근했지만 최종 목표에는 도달하지 못했다.
+
+기록한 실패 bag은 다음 위치에 저장했다.
+
+```text
+rosbags/failure_cases/P07-FAIL-0001_unreachable_goal_test
+```
+
+실패 bag 정보는 다음과 같다.
+
+```text
+Bag size: 5.2 MiB
+Duration: 92.231500380s
+Messages: 9038
+```
+
+기록된 topic count는 다음과 같다.
+
+```text
+/cmd_vel     1034
+/plan        51
+/amcl_pose   58
+/scan        447
+/odom        2628
+/tf_static   1
+/tf          4819
+```
+
+분석 결과, `/plan`이 51개 기록되었고 `/cmd_vel`도 1034개 기록되었기 때문에 경로 계획 자체가 완전히 실패한 `path_planning_failure`로 보기는 어려웠다.
+
+또한 `/scan`, `/odom`, `/tf`, `/tf_static`, `/amcl_pose`가 모두 기록되었으므로 `sensor_missing`이나 명확한 `localization_failure` 가능성도 낮다고 판단했다.
+
+최종적으로 이번 실패 사례는 다음과 같이 분류했다.
+
+```text
+Failure Type: goal_unreachable
+Secondary Symptom: control_oscillation
+Confidence: high
+```
+
+특히 실패 bag의 뒤쪽 구간에서 `/cmd_vel`을 확인한 결과, `linear.x`는 대부분 `0.0` 또는 매우 작은 값이었고, `angular.z`는 큰 양수와 음수 값이 반복적으로 나타났다.
+
+이는 TurtleBot3가 목표 근처에서 전진하여 목표에 수렴하기보다 회전 동작을 반복했다는 근거로 볼 수 있다.
+
+따라서 이번 Phase에서는 정상 bag과 실패 bag을 비교하고, topic 기반 증거를 통해 실패 유형을 분류하는 기본 Failure Analysis 흐름을 검증했다.
+
+완료한 작업은 다음과 같다.
+
+```text
+[x] Phase 6 정상 주행 bag baseline 확인
+[x] Failure Type 후보 정의
+[x] topic별 판단 기준 정리
+[x] failure case 기록 양식 작성
+[x] Failure Analysis workflow 정리
+[x] 첫 실패 실험 계획 수립
+[x] P07-FAIL-0001_unreachable_goal_test 실패 bag 기록
+[x] ros2 bag info로 실패 bag 정보 확인
+[x] /cmd_vel 기반 control_oscillation 보조 증거 확인
+[x] failure report 작성
+[x] experiment_log.md에 실패 실험 인덱싱
+```
+
+관련 파일은 다음과 같다.
+
+```text
+docs/phases/phase07_failure_analysis.md
+results/failure_cases/failure_case_template.md
+results/failure_cases/P07-FAIL-0001_unreachable_goal_test.md
+rosbags/failure_cases/P07-FAIL-0001_unreachable_goal_test
+notes/experiment_log.md
 ```

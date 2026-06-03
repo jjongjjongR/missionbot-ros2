@@ -821,3 +821,74 @@ ros2 bag record \
   * rosbags/phase06_logging/p06_nav2_goal_01
   * rosbags/phase06_logging/p06_nav2_goal_01/metadata.yaml
   * rosbags/phase06_logging/p06_nav2_goal_01/p06_nav2_goal_01_0.db3
+
+---
+
+---
+
+### P07-FAIL-0001_unreachable_goal_test
+
+* Date: 2026-06-03
+* Phase: Phase 7. Failure Analysis
+* Goal: 장애물 내부 또는 도달하기 어려운 위치를 2D Nav Goal로 지정했을 때 Navigation2가 어떤 실패 양상을 보이는지 rosbag2로 기록하고 분석한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Simulator: Gazebo Classic 11.10.2
+  * Robot: TurtleBot3 Burger
+  * Navigation: Navigation2
+  * Logging: rosbag2
+* Command:
+
+```bash
+ros2 bag record \
+  /scan \
+  /odom \
+  /tf \
+  /tf_static \
+  /cmd_vel \
+  /amcl_pose \
+  /plan \
+  -o rosbags/failure_cases/P07-FAIL-0001_unreachable_goal_test
+```
+
+* Topics:
+
+```text
+/scan
+/odom
+/tf
+/tf_static
+/cmd_vel
+/amcl_pose
+/plan
+```
+
+* Result:
+
+  * RViz2에서 장애물 내부 또는 장애물과 가까운 위치를 2D Nav Goal로 지정했다.
+  * TurtleBot3는 목표 근처까지 이동했지만 최종 목표에는 도달하지 못했다.
+  * 목표 근처에서 path가 바뀌는 현상이 보였고, TurtleBot3가 제자리에서 회전하는 동작을 반복했다.
+  * 실패 bag에는 핵심 topic 7개가 모두 기록되었다.
+  * `/cmd_vel` 확인 결과, `linear.x`는 대부분 0.0 또는 매우 작은 값이었고 `angular.z`는 큰 양수/음수 값이 반복적으로 나타났다.
+
+* Success: Yes
+
+* Failure Type: goal_unreachable
+
+* Secondary Symptom: control_oscillation
+
+* Notes:
+
+  * `/plan`이 51개 기록되었으므로 path_planning_failure로 보기는 어렵다.
+  * `/cmd_vel`이 1034개 기록되었으므로 controller가 속도 명령을 발행한 것은 확인된다.
+  * `/scan`, `/odom`, `/tf`, `/tf_static`, `/amcl_pose`가 모두 기록되었으므로 sensor_missing 또는 localization_failure 가능성은 낮다.
+  * 최종적으로는 도달하기 어려운 목표 지점 때문에 Navigation2가 목표 근처에서 수렴하지 못한 goal_unreachable 사례로 판단했다.
+  * 목표 근처에서 회전 명령이 반복되었으므로 control_oscillation은 보조 증상으로 기록한다.
+
+* Related Files:
+
+  * rosbag: `rosbags/failure_cases/P07-FAIL-0001_unreachable_goal_test`
+  * failure report: `results/failure_cases/P07-FAIL-0001_unreachable_goal_test.md`
+  * baseline bag: `rosbags/phase06_logging/p06_nav2_goal_01`
