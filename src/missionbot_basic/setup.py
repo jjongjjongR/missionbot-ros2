@@ -36,6 +36,9 @@ setup(
 
             # 2026-05-25 신규: ros2 run으로 velocity_publisher 노드를 실행하기 위한 진입점 등록
             'velocity_publisher = missionbot_basic.velocity_publisher:main',
+
+            # 2026-06-04 신규: Phase 8-5 open-loop 제어 노드 실행 명령을 등록합니다.
+            'open_loop_controller = missionbot_basic.open_loop_controller:main',
         ],
     },
 )

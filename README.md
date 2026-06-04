@@ -27,7 +27,7 @@ ROS2와 Gazebo 기반으로 TurtleBot3 주행, SLAM/Nav2, rosbag2 로그 분석,
 - [x] Phase 5. Navigation2
 - [x] Phase 6. rosbag2 logging
 - [x] Phase 7. Failure analysis
-- [ ] Phase 8. Control basics
+- [x] Phase 8. Control basics
 - [ ] Phase 9. MoveIt2 basics
 - [ ] Phase 10. LLM/VLM extension
 
@@ -776,3 +776,131 @@ results/failure_cases/P07-FAIL-0001_unreachable_goal_test.md
 rosbags/failure_cases/P07-FAIL-0001_unreachable_goal_test
 notes/experiment_log.md
 ```
+
+---
+
+#### Phase 8 Summary - Control Basics
+
+Phase 8에서는 TurtleBot3의 `/cmd_vel` 속도 명령과 `/odom` 반응을 기준으로 이동로봇 제어의 기초를 확인했다.
+
+이번 Phase의 핵심 목표는 복잡한 PID, MPC, 강화학습 제어를 바로 다루는 것이 아니라, 가장 기본적인 속도 명령이 로봇의 실제 움직임으로 어떻게 이어지는지 직접 확인하는 것이었다.
+
+완료한 작업은 다음과 같다.
+
+```text
+[x] 기존 Gazebo / RViz2 / Nav2 관련 노드 정리
+[x] ROS2 Humble 환경 확인
+[x] TURTLEBOT3_MODEL=burger 확인
+[x] TurtleBot3 Gazebo empty_world 실행
+[x] /cmd_vel topic 확인
+[x] /odom topic 확인
+[x] /cmd_vel의 geometry_msgs/msg/Twist 타입 확인
+[x] /odom의 nav_msgs/msg/Odometry 타입 확인
+[x] /cmd_vel publisher/subscriber 구조 확인
+[x] turtlebot3_diff_drive가 /cmd_vel을 subscribe하는 것 확인
+[x] /odom이 Gazebo TurtleBot3에서 publish되는 것 확인
+[x] teleop_keyboard 입력에 따른 /cmd_vel 값 변화 확인
+[x] TurtleBot3 이동 후 /odom position 및 orientation 변화 확인
+[x] ros2 topic pub으로 open-loop 전진 명령 실습
+[x] linear.x = 0.10 명령에 따른 /odom position 변화 확인
+[x] ros2 topic pub으로 open-loop 회전 명령 실습
+[x] angular.z = 1.0 명령에 따른 /odom orientation 변화 확인
+[x] 전진 명령과 회전 명령의 /odom 반응 비교
+[x] open_loop_controller.py 작성
+[x] setup.py entry_points에 open_loop_controller 등록
+[x] colcon build 성공
+[x] ros2 run으로 open_loop_controller 실행
+[x] Gazebo에서 전진 → 정지 → 회전 → 정지 동작 확인
+[x] 마지막 정지 확인
+```
+
+이번 Phase에서 확인한 핵심 관계는 다음과 같다.
+
+```text
+/cmd_vel
+→ 로봇에게 보내는 속도 명령
+
+/odom
+→ 로봇이 실제로 어떻게 움직였는지 추정한 결과
+```
+
+`/cmd_vel`에서 가장 중요하게 본 필드는 다음 두 개다.
+
+```text
+linear.x
+→ 로봇 기준 전진/후진 속도
+
+angular.z
+→ 로봇 기준 회전 속도
+```
+
+전진 실험에서는 다음 명령을 사용했다.
+
+```text
+linear.x = 0.10
+angular.z = 0.0
+```
+
+그 결과 `/odom`의 `position.x`, `position.y` 값이 변했고, orientation 값은 거의 유지되었다.
+
+회전 실험에서는 다음 명령을 사용했다.
+
+```text
+linear.x = 0.0
+angular.z = 1.0
+```
+
+그 결과 `/odom`의 `position.x`, `position.y` 변화는 작았고, `orientation.z`, `orientation.w` 값이 크게 변했다.
+
+이를 통해 다음 관계를 확인했다.
+
+```text
+/cmd_vel linear.x
+→ /odom position 변화
+
+/cmd_vel angular.z
+→ /odom orientation 변화
+```
+
+마지막으로 터미널에서 직접 `/cmd_vel`을 publish하던 실습을 Python ROS2 node로 옮겼다.
+
+작성한 파일은 다음과 같다.
+
+```text
+src/missionbot_basic/missionbot_basic/open_loop_controller.py
+```
+
+등록한 실행 명령은 다음과 같다.
+
+```text
+ros2 run missionbot_basic open_loop_controller
+```
+
+이 node는 다음 순서로 TurtleBot3를 제어했다.
+
+```text
+0~2초
+→ 전진
+
+2~3초
+→ 정지
+
+3~5초
+→ 제자리 회전
+
+5~6초
+→ 정지
+
+6초 이후
+→ 종료
+```
+
+Gazebo에서 TurtleBot3가 전진 → 정지 → 회전 → 정지 순서로 움직이는 것을 확인했고, 마지막에 정상적으로 멈추는 것도 확인했다.
+
+Phase 8 완료 의미는 다음과 같다.
+
+```text
+MissionBot-ROS2는 이제 Navigation2가 자동으로 생성하던 /cmd_vel 명령을 기초 제어 관점에서 직접 이해하고, 간단한 Python ROS2 node로 속도 명령을 발행할 수 있게 되었다.
+```
+
+이로써 Phase 8은 이동로봇 제어의 가장 기본 입력인 `/cmd_vel`과 실제 반응인 `/odom`의 관계를 직접 실습하고 검증한 단계로 정리한다.

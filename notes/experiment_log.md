@@ -824,8 +824,6 @@ ros2 bag record \
 
 ---
 
----
-
 ### P07-FAIL-0001_unreachable_goal_test
 
 * Date: 2026-06-03
@@ -892,3 +890,266 @@ ros2 bag record \
   * rosbag: `rosbags/failure_cases/P07-FAIL-0001_unreachable_goal_test`
   * failure report: `results/failure_cases/P07-FAIL-0001_unreachable_goal_test.md`
   * baseline bag: `rosbags/phase06_logging/p06_nav2_goal_01`
+
+---
+
+### P08-EXP-0001_cmd_vel_odom_topic_check
+
+* Date: 2026-06-04
+* Phase: Phase 8. Control basics
+* Goal: TurtleBot3 Gazebo 환경에서 `/cmd_vel`과 `/odom` topic의 연결 상태를 확인하고, 속도 명령과 이동 결과의 관계를 복습한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Gazebo: Gazebo Classic 11.10.2
+  * Robot: TurtleBot3 Burger
+  * Project path: `~/projects/missionbot-ros2`
+* Command:
+
+```bash
+cd ~/projects/missionbot-ros2
+
+ros2 topic list | grep -E "cmd_vel|odom|tf"
+
+ros2 topic info /cmd_vel -v
+ros2 topic info /odom
+
+ros2 topic echo /odom --once
+
+ros2 run turtlebot3_teleop teleop_keyboard
+ros2 topic echo /cmd_vel
+```
+
+* Topics:
+
+  * `/cmd_vel`
+  * `/odom`
+  * `/tf`
+  * `/tf_static`
+* Result:
+
+  * `/cmd_vel` topic이 `geometry_msgs/msg/Twist` 타입인 것을 확인했다.
+  * `/cmd_vel`은 `turtlebot3_diff_drive` node가 subscribe하고 있었다.
+  * `/odom` topic이 `nav_msgs/msg/Odometry` 타입인 것을 확인했다.
+  * `/odom`은 Gazebo TurtleBot3에서 publish되고 있었다.
+  * teleop 입력에 따라 `/cmd_vel`의 `linear.x`, `angular.z` 값이 변했다.
+  * TurtleBot3 이동 후 `/odom`의 position과 orientation 값이 변하는 것을 확인했다.
+* Success: Yes
+* Failure Type: None
+* Notes:
+
+  * `/cmd_vel`은 로봇에게 보내는 속도 명령이다.
+  * `/odom`은 로봇이 실제로 어떻게 움직였는지 추정한 결과다.
+  * `linear.x`는 로봇 기준 전진/후진 속도이고, `angular.z`는 로봇 기준 회전 속도다.
+* Related Files:
+
+  * `docs/phases/phase08_control_basics.md`
+  * `notes/phase_summaries/phase08_control_basics_summary.md`
+
+---
+
+### P08-EXP-0002_open_loop_forward_control
+
+* Date: 2026-06-04
+* Phase: Phase 8. Control basics
+* Goal: `/cmd_vel`에 직접 전진 속도 명령을 발행하고, `/odom` position 변화로 TurtleBot3의 전진 결과를 확인한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Gazebo: Gazebo Classic 11.10.2
+  * Robot: TurtleBot3 Burger
+  * Project path: `~/projects/missionbot-ros2`
+* Command:
+
+```bash
+ros2 topic echo /odom --once
+
+ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.10, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" &
+PUB_PID=$!
+sleep 2
+kill $PUB_PID
+ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"
+
+ros2 topic echo /odom --once
+```
+
+* Topics:
+
+  * `/cmd_vel`
+  * `/odom`
+* Result:
+
+  * 전진 전 `/odom` position:
+
+    * `x: 0.4280005964`
+    * `y: 0.2159413832`
+  * 전진 후 `/odom` position:
+
+    * `x: 0.4684945049`
+    * `y: 0.4435689256`
+  * 변화량:
+
+    * `Δx ≈ 0.0405`
+    * `Δy ≈ 0.2276`
+  * 대략 이동 거리:
+
+    * `약 0.231 m`
+  * 이론상 기대 이동 거리:
+
+    * `0.10 m/s × 2 s = 0.20 m`
+* Success: Yes
+* Failure Type: None
+* Notes:
+
+  * `linear.x = 0.10`, `angular.z = 0.0` 명령을 통해 TurtleBot3가 현재 바라보는 방향으로 전진했다.
+  * `/odom`의 position 값이 변했고 orientation 값은 거의 유지되었다.
+  * 이를 통해 `/cmd_vel linear.x`가 `/odom position` 변화로 이어지는 것을 확인했다.
+  * `linear.x`는 odom 좌표계의 x축 방향이 아니라 로봇 기준 앞 방향 속도다.
+* Related Files:
+
+  * `docs/phases/phase08_control_basics.md`
+  * `notes/phase_summaries/phase08_control_basics_summary.md`
+
+---
+
+### P08-EXP-0003_open_loop_rotation_control
+
+* Date: 2026-06-04
+* Phase: Phase 8. Control basics
+* Goal: `/cmd_vel`에 직접 회전 속도 명령을 발행하고, `/odom` orientation 변화로 TurtleBot3의 제자리 회전 결과를 확인한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Gazebo: Gazebo Classic 11.10.2
+  * Robot: TurtleBot3 Burger
+  * Project path: `~/projects/missionbot-ros2`
+* Command:
+
+```bash
+ros2 topic echo /odom --once
+
+ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 1.0}}" &
+PUB_PID=$!
+sleep 3
+kill $PUB_PID
+ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"
+
+ros2 topic echo /odom --once
+```
+
+* Topics:
+
+  * `/cmd_vel`
+  * `/odom`
+* Result:
+
+  * 회전 전 `/odom` orientation:
+
+    * `orientation.z: 0.0000182608`
+    * `orientation.w: 0.9999958917`
+  * 회전 후 `/odom` orientation:
+
+    * `orientation.z: 0.7499511629`
+    * `orientation.w: -0.6614871319`
+  * 회전 전후 position:
+
+    * `position.x: 0.0001432495 → 0.0021648843`
+    * `position.y: -0.0000011391 → -0.0019984518`
+* Success: Yes
+* Failure Type: None
+* Notes:
+
+  * `linear.x = 0.0`, `angular.z = 1.0` 명령을 통해 TurtleBot3가 제자리에서 회전했다.
+  * `/odom`의 position 변화는 작았고 orientation 값은 크게 변했다.
+  * 이를 통해 `/cmd_vel angular.z`가 `/odom orientation` 변화로 이어지는 것을 확인했다.
+  * 정지 명령을 `--once`로 한 번만 보냈을 때 로봇이 바로 멈추지 않는 현상이 있었다.
+  * 이후에는 정지 명령을 일정 시간 동안 반복 발행하는 방식이 더 안전하다고 판단했다.
+* Related Files:
+
+  * `docs/phases/phase08_control_basics.md`
+  * `notes/phase_summaries/phase08_control_basics_summary.md`
+
+---
+
+### P08-EXP-0004_python_open_loop_controller_node
+
+* Date: 2026-06-04
+* Phase: Phase 8. Control basics
+* Goal: 터미널에서 직접 `/cmd_vel`을 publish하던 open-loop control 실습을 Python ROS2 node로 옮겨 실행한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Gazebo: Gazebo Classic 11.10.2
+  * Robot: TurtleBot3 Burger
+  * Project path: `~/projects/missionbot-ros2`
+* Command:
+
+```bash
+cd ~/projects/missionbot-ros2
+
+colcon build --packages-select missionbot_basic
+
+source install/setup.bash
+
+ros2 pkg executables missionbot_basic
+
+ros2 run missionbot_basic open_loop_controller
+```
+
+* Topics:
+
+  * `/cmd_vel`
+  * `/odom`
+* Result:
+
+  * `open_loop_controller.py` 파일을 작성했다.
+  * `setup.py`의 `entry_points`에 `open_loop_controller`를 등록했다.
+  * `colcon build --packages-select missionbot_basic` 명령으로 빌드에 성공했다.
+  * `ros2 pkg executables missionbot_basic`에서 `open_loop_controller` 실행 파일을 확인했다.
+  * `ros2 run missionbot_basic open_loop_controller` 명령으로 Python control node를 실행했다.
+  * Gazebo에서 TurtleBot3가 다음 순서로 움직이는 것을 확인했다.
+
+```text
+전진
+→ 정지
+→ 회전
+→ 정지
+```
+
+* 마지막에 TurtleBot3가 정상적으로 멈추는 것을 확인했다.
+* Success: Yes
+* Failure Type: None
+* Notes:
+
+  * 직접 작성한 Python ROS2 node가 `/cmd_vel`을 publish하여 TurtleBot3를 제어할 수 있음을 확인했다.
+  * control sequence는 다음과 같이 구성했다.
+
+```text
+0~2초
+→ 전진
+
+2~3초
+→ 정지
+
+3~5초
+→ 제자리 회전
+
+5~6초
+→ 정지
+
+6초 이후
+→ 종료
+```
+
+* 정지 명령은 한 번만 보내는 대신 정지 구간 동안 반복 발행하도록 구성했다.
+* 이를 통해 이전 회전 실험에서 발생한 정지 불안정 문제를 보완했다.
+* Related Files:
+
+  * `src/missionbot_basic/missionbot_basic/open_loop_controller.py`
+  * `src/missionbot_basic/setup.py`
+  * `docs/phases/phase08_control_basics.md`
+  * `notes/phase_summaries/phase08_control_basics_summary.md`
