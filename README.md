@@ -28,7 +28,7 @@ ROS2와 Gazebo 기반으로 TurtleBot3 주행, SLAM/Nav2, rosbag2 로그 분석,
 - [x] Phase 6. rosbag2 logging
 - [x] Phase 7. Failure analysis
 - [x] Phase 8. Control basics
-- [ ] Phase 9. MoveIt2 basics
+- [x] Phase 9. MoveIt2 basics
 - [ ] Phase 10. LLM/VLM extension
 
 ### 파일 구조
@@ -36,7 +36,6 @@ ROS2와 Gazebo 기반으로 TurtleBot3 주행, SLAM/Nav2, rosbag2 로그 분석,
 ```text
 missionbot-ros2/
 ├── docs/   (공부 + 구현 내용 정리)
-│   ├── 학습용/   (llm 학습용 프롬프트)
 │   ├── phases/   (Phase별 진행 정리)
 │   ├── concepts/   (ROS2 핵심 개념 정리)
 │   ├── templates/   (기록 양식 모음)
@@ -904,3 +903,150 @@ MissionBot-ROS2는 이제 Navigation2가 자동으로 생성하던 /cmd_vel 명�
 ```
 
 이로써 Phase 8은 이동로봇 제어의 가장 기본 입력인 `/cmd_vel`과 실제 반응인 `/odom`의 관계를 직접 실습하고 검증한 단계로 정리한다.
+
+---
+
+#### Phase 9 Summary - MoveIt2 Basics
+
+Phase 9에서는 TurtleBot3 기반 이동로봇 실습 이후, 로봇팔 조작 기초를 이해하기 위해 MoveIt2 환경을 구성하고 Panda 로봇팔 데모를 실행했다.
+
+이번 Phase의 핵심 목표는 실제 로봇팔 하드웨어 제어나 복잡한 manipulation task를 구현하는 것이 아니라, MoveIt2가 로봇팔 모델, planning scene, move_group, controller, RViz2 MotionPlanning display를 통해 motion planning과 trajectory execution을 수행하는 기본 흐름을 확인하는 것이었다.
+
+완료한 작업은 다음과 같다.
+
+```text
+[x] 기존 Gazebo / TurtleBot3 노드 정리
+[x] ROS2 Humble 환경 확인
+[x] MoveIt2 패키지 설치 확인
+[x] ros-humble-moveit 설치
+[x] moveit_core, moveit_msgs, moveit_ros_move_group 패키지 확인
+[x] moveit_setup_assistant 실행 파일 확인
+[x] move_group 실행 파일 확인
+[x] moveit_msgs 인터페이스 확인
+[x] Panda MoveIt2 demo resource 패키지 미설치 상태 확인
+[x] moveit_resources_panda_description 설치 확인
+[x] moveit_resources_panda_moveit_config 설치 확인
+[x] Panda MoveIt2 demo.launch.py 실행
+[x] RViz2에서 Panda 로봇팔 모델 표시 확인
+[x] MotionPlanning display 추가
+[x] Planning Group을 hand에서 panda_arm으로 변경
+[x] Goal State를 <random valid>로 설정
+[x] Plan 실행
+[x] OMPL planning pipeline 사용 확인
+[x] RRTConnect planner 사용 확인
+[x] Motion plan computed successfully 확인
+[x] Execute 실행
+[x] panda_arm_controller trajectory execution 성공 확인
+[x] MoveIt2 관련 node, topic, controller 구조 확인
+```
+
+이번 Phase에서 확인한 핵심 흐름은 다음과 같다.
+
+```text
+Panda robot description
+→ robot_state_publisher
+→ RViz2 MotionPlanning display
+→ move_group
+→ OMPL planning pipeline
+→ RRTConnect planner
+→ trajectory 생성
+→ panda_arm_controller
+→ Execute 성공
+→ /joint_states 갱신
+```
+
+MoveIt2 설치 후 확인한 주요 패키지는 다음과 같다.
+
+```text
+moveit
+moveit_common
+moveit_core
+moveit_msgs
+moveit_planners
+moveit_planners_ompl
+moveit_ros
+moveit_ros_move_group
+moveit_ros_planning
+moveit_ros_planning_interface
+moveit_ros_visualization
+moveit_setup_assistant
+moveit_simple_controller_manager
+```
+
+Panda 데모 실행을 위해 추가로 확인한 패키지는 다음과 같다.
+
+```text
+moveit_resources_panda_description
+moveit_resources_panda_moveit_config
+```
+
+RViz2 MotionPlanning에서 `Planning Group`은 처음에 `hand`로 설정되어 있었고, 로봇팔 본체의 motion planning을 확인하기 위해 `panda_arm`으로 변경했다.
+
+Plan 실행 시 확인한 주요 로그는 다음과 같다.
+
+```text
+Planning request received for MoveGroup action.
+Using planning pipeline 'ompl'
+Planner configuration 'panda_arm' will use planner 'geometric::RRTConnect'
+Motion plan was computed successfully.
+Planning request complete!
+time taken to generate plan: 0.0191608 seconds
+```
+
+Execute 실행 시 확인한 주요 로그는 다음과 같다.
+
+```text
+Goal request accepted!
+Goal reached, success!
+Controller 'panda_arm_controller' successfully finished
+Completed trajectory execution with status SUCCEEDED
+Execution completed: SUCCEEDED
+Execute request success!
+```
+
+MoveIt2 demo 실행 중 확인한 주요 node는 다음과 같다.
+
+```text
+/controller_manager
+/joint_state_broadcaster
+/move_group
+/moveit_simple_controller_manager
+/panda_arm_controller
+/panda_hand_controller
+/robot_state_publisher
+/rviz2
+/static_transform_publisher
+```
+
+확인한 주요 topic은 다음과 같다.
+
+```text
+/dynamic_joint_states
+/joint_states
+/monitored_planning_scene
+/panda_arm_controller/controller_state
+/panda_arm_controller/joint_trajectory
+/panda_arm_controller/state
+/planning_scene
+/planning_scene_world
+/robot_description
+/tf
+/tf_static
+/trajectory_execution_event
+```
+
+확인한 controller 상태는 다음과 같다.
+
+```text
+joint_state_broadcaster active
+panda_arm_controller active
+panda_hand_controller active
+```
+
+이번 Phase를 통해 MissionBot-ROS2는 이동로봇 중심의 SLAM, Navigation2, rosbag2, failure analysis, control basics 흐름에서 한 단계 확장하여, MoveIt2 기반 로봇팔 motion planning과 trajectory execution의 기본 구조를 이해했다.
+
+Phase 9 완료 의미:
+
+```text
+MissionBot-ROS2는 MoveIt2를 통해 로봇팔 모델을 RViz2에서 시각화하고, planning group을 선택한 뒤, move_group을 통해 motion plan을 생성하고 controller를 통해 trajectory를 실행하는 기본 흐름을 확인했다.
+```

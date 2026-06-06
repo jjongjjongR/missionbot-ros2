@@ -1153,3 +1153,320 @@ ros2 run missionbot_basic open_loop_controller
   * `src/missionbot_basic/setup.py`
   * `docs/phases/phase08_control_basics.md`
   * `notes/phase_summaries/phase08_control_basics_summary.md`
+
+---
+
+### P09-EXP-0001_moveit2_install_check
+
+* Date:
+* Phase: Phase 9. MoveIt2 Basics
+* Goal: MoveIt2 본체가 ROS2 Humble 환경에 설치되어 있는지 확인하고, 필요한 패키지를 설치한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Simulator: Gazebo Classic
+  * Visualization: RViz2
+  * Robot model: Panda demo robot arm
+  * Project path: `~/projects/missionbot-ros2`
+* Command:
+
+```bash
+ros2 node list
+
+echo $ROS_DISTRO
+echo $TURTLEBOT3_MODEL
+
+which ros2
+which gazebo
+which rviz2
+
+ros2 pkg list | grep moveit
+ros2 pkg list | grep moveit_ros
+ros2 pkg list | grep moveit_configs
+```
+
+MoveIt2 설치:
+
+```bash
+sudo apt update
+sudo apt install -y ros-humble-moveit
+```
+
+설치 후 확인:
+
+```bash
+ros2 pkg list | grep moveit
+ros2 pkg list | grep moveit_ros
+ros2 pkg list | grep moveit_configs
+```
+
+* Topics:
+
+  * None
+* Result:
+
+  * 기존 Gazebo / TurtleBot3 관련 node가 남아 있었으나 정리 후 `ros2 node list`에서 node가 없는 상태를 확인했다.
+  * ROS2 Humble 환경이 정상 적용되어 있었다.
+  * MoveIt2 관련 패키지가 처음에는 출력되지 않았고, `ros-humble-moveit` 설치 후 MoveIt2 패키지가 정상 인식되었다.
+  * 확인된 주요 패키지는 `moveit`, `moveit_core`, `moveit_msgs`, `moveit_planners`, `moveit_ros_move_group`, `moveit_ros_planning`, `moveit_ros_planning_interface`, `moveit_ros_visualization`, `moveit_setup_assistant` 등이었다.
+* Success: Yes
+* Failure Type: None
+* Notes:
+
+  * MoveIt2 본체 설치와 Panda demo resource 설치는 별도 단계임을 확인했다.
+  * `ros-humble-moveit` 설치만으로는 `moveit_resources_panda_moveit_config`가 바로 제공되지 않을 수 있다.
+* Related Files:
+
+  * `docs/phases/phase09_moveit2_basics.md`
+  * `notes/phase_summaries/phase09_moveit2_basics_summary.md`
+
+---
+
+### P09-EXP-0002_moveit2_package_structure_check
+
+* Date:
+* Phase: Phase 9. MoveIt2 Basics
+* Goal: MoveIt2 핵심 실행 파일과 interface 구조를 확인한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * MoveIt2: Humble binary package
+  * Project path: `~/projects/missionbot-ros2`
+* Command:
+
+```bash
+ros2 pkg executables moveit_setup_assistant
+ros2 pkg executables moveit_ros_move_group
+ros2 pkg executables moveit_ros_visualization
+ros2 pkg executables moveit_ros_planning_interface
+
+ros2 interface list | grep moveit_msgs | head -n 30
+```
+
+* Topics:
+
+  * None
+* Result:
+
+  * `moveit_setup_assistant` 실행 파일을 확인했다.
+  * `move_group` 실행 파일을 확인했다.
+  * `moveit_msgs` interface 목록을 확인했다.
+  * 확인한 주요 interface는 `MotionPlanRequest`, `MotionPlanResponse`, `DisplayTrajectory`, `CollisionObject`, `JointConstraint`, `JointLimits`, `MoveItErrorCodes` 등이었다.
+* Success: Yes
+* Failure Type: None
+* Notes:
+
+  * `move_group`은 MoveIt2에서 motion planning 요청을 받아 planning pipeline으로 전달하는 중심 node다.
+  * `moveit_msgs`는 MoveIt2가 motion planning, collision object, trajectory display, joint constraint 등을 ROS2에서 주고받기 위한 메시지 묶음이다.
+* Related Files:
+
+  * `docs/phases/phase09_moveit2_basics.md`
+
+---
+
+### P09-EXP-0003_panda_moveit_demo_resource_check
+
+* Date:
+* Phase: Phase 9. MoveIt2 Basics
+* Goal: RViz2 MotionPlanning 실습에 사용할 Panda demo resource 패키지가 설치되어 있는지 확인한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * MoveIt2: Humble binary package
+  * Project path: `~/projects/missionbot-ros2`
+* Command:
+
+```bash
+ros2 pkg list | grep moveit_resources
+ros2 pkg list | grep panda
+ros2 pkg list | grep moveit2_tutorials
+
+ros2 launch moveit_resources_panda_moveit_config demo.launch.py
+```
+
+Panda resource 설치 확인 후:
+
+```bash
+ros2 pkg list | grep moveit_resources
+ros2 pkg list | grep panda
+```
+
+* Topics:
+
+  * None
+* Result:
+
+  * 처음에는 `moveit_resources_panda_moveit_config` 패키지가 없어 `demo.launch.py` 실행에 실패했다.
+  * 이후 Panda resource 패키지를 설치했고, 다음 패키지가 정상 인식되었다.
+
+```text
+moveit_resources_panda_description
+moveit_resources_panda_moveit_config
+```
+
+* Success: Yes
+* Failure Type: None
+* Notes:
+
+  * `moveit_resources_panda_description`은 Panda 로봇팔의 link, joint, mesh 등 로봇 모델 정보를 제공한다.
+  * `moveit_resources_panda_moveit_config`는 Panda 로봇팔을 MoveIt2에서 planning하기 위한 planning group, kinematics, controller, RViz 설정 등을 제공한다.
+* Related Files:
+
+  * `docs/phases/phase09_moveit2_basics.md`
+
+---
+
+### P09-EXP-0004_panda_moveit2_rviz_motion_planning
+
+* Date:
+* Phase: Phase 9. MoveIt2 Basics
+* Goal: Panda MoveIt2 demo를 실행하고 RViz2 MotionPlanning display에서 motion plan을 생성한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * MoveIt2: Humble binary package
+  * Robot model: Panda robot arm
+  * Visualization: RViz2
+  * Project path: `~/projects/missionbot-ros2`
+* Command:
+
+```bash
+ros2 launch moveit_resources_panda_moveit_config demo.launch.py
+```
+
+RViz2에서 수행한 작업:
+
+```text
+Displays
+→ Add
+→ MotionPlanning 추가
+
+MotionPlanning panel
+→ Planning Group: panda_arm
+→ Goal State: <random valid>
+→ Plan 클릭
+```
+
+* Topics:
+
+  * `/joint_states`
+  * `/monitored_planning_scene`
+  * `/planning_scene`
+  * `/planning_scene_world`
+  * `/robot_description`
+  * `/tf`
+  * `/tf_static`
+* Result:
+
+  * RViz2에서 Panda 로봇팔 모델이 정상 표시되었다.
+  * 처음에는 MotionPlanning display가 보이지 않았고, `Panels`가 아니라 `Displays`의 `Add`에서 MotionPlanning을 추가해야 한다는 것을 확인했다.
+  * Planning Group이 처음에는 `hand`로 설정되어 있었고, 로봇팔 본체 planning을 위해 `panda_arm`으로 변경했다.
+  * Goal State를 `<random valid>`로 변경한 뒤 Plan을 실행했다.
+  * OMPL planning pipeline과 RRTConnect planner가 사용되었다.
+  * Motion plan이 성공적으로 계산되었고 RViz2에서 trajectory가 시각화되었다.
+* Success: Yes
+* Failure Type: None
+* Notes:
+
+  * `Plan`은 경로를 계산하고 RViz2에서 미리 보여주는 단계다.
+  * `Execute`는 계산된 trajectory를 controller에 전달하여 로봇팔 상태를 실제로 변경하는 단계다.
+  * `Plan & Execute`는 두 과정을 한 번에 수행하므로, 처음 실습에서는 Plan과 Execute를 분리해서 확인했다.
+* Related Files:
+
+  * `docs/phases/phase09_moveit2_basics.md`
+  * `results/screenshots/rviz/`
+
+---
+
+### P09-EXP-0005_panda_moveit2_trajectory_execute
+
+* Date:
+* Phase: Phase 9. MoveIt2 Basics
+* Goal: RViz2에서 생성한 motion plan을 Execute하여 Panda 로봇팔 controller 실행 흐름을 확인한다.
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * MoveIt2: Humble binary package
+  * Robot model: Panda robot arm
+  * Visualization: RViz2
+  * Controller: ros2_control
+  * Project path: `~/projects/missionbot-ros2`
+* Command:
+
+RViz2 MotionPlanning panel에서 실행:
+
+```text
+Execute 클릭
+```
+
+실행 구조 확인:
+
+```bash
+ros2 node list
+
+ros2 topic list | grep -E "joint|trajectory|planning|robot|controller|tf"
+
+ros2 control list_controllers
+```
+
+* Topics:
+
+  * `/dynamic_joint_states`
+  * `/joint_states`
+  * `/monitored_planning_scene`
+  * `/panda_arm_controller/controller_state`
+  * `/panda_arm_controller/joint_trajectory`
+  * `/panda_arm_controller/state`
+  * `/planning_scene`
+  * `/planning_scene_world`
+  * `/robot_description`
+  * `/tf`
+  * `/tf_static`
+  * `/trajectory_execution_event`
+* Result:
+
+  * Execute 요청이 성공했다.
+  * `panda_arm_controller`가 trajectory goal을 받아 목표 상태에 도달했다.
+  * MoveIt2 trajectory execution manager에서 `SUCCEEDED` 상태를 확인했다.
+  * 실행 후 node, topic, controller 구조를 확인했다.
+
+확인한 주요 node:
+
+```text
+/controller_manager
+/joint_state_broadcaster
+/move_group
+/moveit_simple_controller_manager
+/panda_arm_controller
+/panda_hand_controller
+/robot_state_publisher
+/rviz2
+/static_transform_publisher
+```
+
+확인한 controller 상태:
+
+```text
+joint_state_broadcaster active
+panda_arm_controller active
+panda_hand_controller active
+```
+
+* Success: Yes
+* Failure Type: None
+* Notes:
+
+  * `panda_arm_controller`는 Panda 팔 관절 trajectory를 실행하는 controller다.
+  * `panda_hand_controller`는 gripper 제어에 해당한다.
+  * `joint_state_broadcaster`는 현재 joint 상태를 ROS2 topic으로 발행한다.
+  * 실행 마지막에 `Maybe failed to update robot state, time diff: 0.052s` warning이 있었지만, 직전에 execution success 로그가 확인되었으므로 치명적인 문제로 보지 않았다.
+* Related Files:
+
+  * `docs/phases/phase09_moveit2_basics.md`
+  * `notes/phase_summaries/phase09_moveit2_basics_summary.md`
+  * `results/screenshots/rviz/`
