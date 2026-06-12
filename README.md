@@ -29,7 +29,7 @@ ROS2와 Gazebo 기반으로 TurtleBot3 주행, SLAM/Nav2, rosbag2 로그 분석,
 - [x] Phase 7. Failure analysis
 - [x] Phase 8. Control basics
 - [x] Phase 9. MoveIt2 basics
-- [ ] Phase 10. LLM/VLM extension
+- [x] Phase 10. LLM/VLM extension
 
 ### 파일 구조
 
@@ -1049,4 +1049,135 @@ Phase 9 완료 의미:
 
 ```text
 MissionBot-ROS2는 MoveIt2를 통해 로봇팔 모델을 RViz2에서 시각화하고, planning group을 선택한 뒤, move_group을 통해 motion plan을 생성하고 controller를 통해 trajectory를 실행하는 기본 흐름을 확인했다.
+```
+
+---
+
+#### Phase 10. LLM/VLM extension
+
+Phase 10에서는 사용자의 자연어 명령을 OpenAI API 기반 LLM으로 해석하고, 로봇 시스템이 사용할 수 있는 구조화된 Mission command로 변환하는 기능을 구현했다.
+
+이번 Phase의 구현 범위는 LLM Mission Parser까지이며, VLM 객체 선택이나 Navigation2·MoveIt2 직접 실행은 포함하지 않았다.
+
+전체 처리 흐름은 다음과 같다.
+
+```text
+사용자 자연어 명령
+→ OpenAI LLM Mission Parser
+→ Pydantic Structured Outputs
+→ Semantic Validator
+→ 실행 허용 여부 판단
+→ ROS2 Mission command topic 발행
+```
+
+완료한 내용:
+
+* ROS2 Python 패키지 `mission_parser` 생성
+* OpenAI Python SDK와 Responses API 연결
+* 프로젝트 루트의 `.env`에서 `OPENAI_API_KEY` 로드
+* `.env`, `.env.*`를 `.gitignore`에 등록
+* 한국어 자연어 명령을 영어 기반 Mission command로 변환
+* 문자열 값을 `lowercase_snake_case` 형식으로 정규화
+* `gpt-4o-mini` 기반 Mission Parser 구성
+* Pydantic 기반 `MissionCommand` schema 정의
+* OpenAI Structured Outputs 적용
+* `intent`를 `move_to`, `inspect_object`, `stop`, `unknown`으로 제한
+* `target`, `object`, `constraints`의 역할 분리
+* Navigation, Vision, Manipulation 필요 여부 출력
+* 공간 관계를 `constraints`에 보존하도록 prompt 규칙 보완
+* 6개 자연어 명령 자동 테스트 구성
+* 실제 결과와 예상 결과의 Exact-match 비교 구현
+* Python 기반 Semantic Validator 구현
+* 잘못된 목적지, 누락된 target, 잘못된 실행 flag 탐지
+* `unknown` 명령의 실행 차단 정책 구현
+* ROS2 `mission_parser_node` 구현
+* `/missionbot/user_command` 자연어 명령 구독
+* `/missionbot/mission_command` 검증된 JSON 명령 발행
+* Semantic Validation 실패 또는 지원 범위 밖 명령의 topic 발행 차단
+
+최종 테스트 결과:
+
+```text
+Semantic Validator 독립 테스트
+PASS: 6
+FAIL: 0
+TOTAL: 6
+
+LLM Mission Parser 통합 테스트
+Exact-match PASS: 6
+Exact-match FAIL: 0
+Exact-match pass rate: 100.0%
+Semantic Validation PASS: 6/6
+Execution Allowed: 5/6
+```
+
+`Execution Allowed`가 5/6인 이유는 `"커피를 만들어줘"`가 `unknown`으로 정상 분류되어 실제 실행이 차단되었기 때문이다.
+
+대표 입력:
+
+```text
+책상 앞으로 이동해줘
+```
+
+대표 출력:
+
+```json
+{
+  "intent": "move_to",
+  "target": "desk",
+  "object": null,
+  "constraints": [
+    "front"
+  ],
+  "requires_navigation": true,
+  "requires_vision": false,
+  "requires_manipulation": false
+}
+```
+
+ROS2 topic 연결:
+
+```text
+/missionbot/user_command
+→ mission_parser_node
+→ LLM Mission Parser
+→ Semantic Validator
+→ /missionbot/mission_command
+```
+
+정상 이동 명령은 검증 후 `/missionbot/mission_command`로 발행되었다.
+
+지원 범위 밖 명령은 다음 흐름으로 처리되었다.
+
+```text
+커피를 만들어줘
+→ intent = unknown
+→ Semantic Validation 통과
+→ Execution Allowed = False
+→ Mission command topic 발행 차단
+```
+
+Phase 10 완료 의미:
+
+```text
+자연어 명령
+→ 구조화된 Mission command
+→ 의미 규칙 검사
+→ 실행 가능 여부 판단
+→ ROS2 topic 전달
+```
+
+LLM이 로봇을 직접 제어하지 않고, 상위 명령 해석 계층으로 동작하도록 구조를 분리했다.
+
+다음 확장 범위:
+
+```text
+VLM 또는 Object Selector
+→ 카메라 장면과 object 조건 연결
+
+Mission Router
+→ 검증된 Mission command를 실행 모듈로 분배
+
+Navigation2 / MoveIt2
+→ 실제 이동 및 조작 실행
 ```

@@ -1470,3 +1470,420 @@ panda_hand_controller active
   * `docs/phases/phase09_moveit2_basics.md`
   * `notes/phase_summaries/phase09_moveit2_basics_summary.md`
   * `results/screenshots/rviz/`
+
+---
+
+---
+
+## Phase 10. LLM/VLM extension
+
+### P10-EXP-0001_openai_api_connection_test
+
+* Date: 2026-06-12
+
+* Phase: Phase 10. LLM/VLM extension
+
+* Goal: MissionBot ROS2 패키지 내부에서 OpenAI API를 호출하고 LLM 응답을 받을 수 있는지 확인한다.
+
+* Environment:
+
+  * OS: Ubuntu 22.04 LTS
+  * ROS2: Humble Hawksbill
+  * Python: 3.10
+  * Package: `mission_parser`
+  * API: OpenAI Responses API
+  * Initial Model: `gpt-4.1-mini`
+
+* Command:
+
+  ```bash
+  cd ~/projects/missionbot-ros2
+
+  colcon build --packages-select mission_parser
+  source install/setup.bash
+
+  ros2 run mission_parser openai_connection_test
+  ```
+
+* Topics: N/A
+
+* Result:
+
+  * `mission_parser` 패키지와 `openai_connection_test` 실행 파일이 ROS2에서 정상 인식되었다.
+  * 프로젝트 루트의 `.env`에서 `OPENAI_API_KEY`를 읽었다.
+  * OpenAI API 호출 후 LLM 응답이 터미널에 출력되었다.
+
+  ```text
+  LLM 응답:
+  MissionBot-ROS2 Phase 10 연결이 성공적으로 테스트되었습니다.
+  ```
+
+* Success: Yes
+
+* Failure Type: N/A
+
+* Notes:
+
+  * API key는 Python 코드에 직접 작성하지 않았다.
+  * `.env`, `.env.*`를 `.gitignore`에 추가했다.
+  * `ros2 run` 실행 시 설치 경로를 기준으로 `.env`를 찾는 문제가 있어, 프로젝트 루트의 현재 작업 경로를 사용하도록 수정했다.
+
+* Related Files:
+
+  * `.env`
+  * `.gitignore`
+  * `src/mission_parser/mission_parser/openai_connection_test.py`
+  * `src/mission_parser/setup.py`
+
+---
+
+### P10-EXP-0002_llm_mission_parser_minimal
+
+* Date: 2026-06-12
+
+* Phase: Phase 10. LLM/VLM extension
+
+* Goal: 한국어 자연어 명령을 OpenAI 기반 LLM으로 해석해 Mission command JSON으로 변환한다.
+
+* Environment:
+
+  * ROS2: Humble Hawksbill
+  * Python: 3.10
+  * Package: `mission_parser`
+  * API: OpenAI Responses API
+
+* Command:
+
+  ```bash
+  cd ~/projects/missionbot-ros2
+
+  colcon build --packages-select mission_parser
+  source install/setup.bash
+
+  ros2 run mission_parser llm_mission_parser
+  ```
+
+* Topics: N/A
+
+* Result:
+
+  * `"책상 앞으로 이동해줘"` 명령을 Mission command JSON으로 변환했다.
+  * `target`과 `constraints`를 영어 표준 표현으로 정규화했다.
+
+  ```json
+  {
+    "intent": "move_to",
+    "target": "desk",
+    "object": null,
+    "constraints": [
+      "front"
+    ],
+    "requires_navigation": true,
+    "requires_vision": false,
+    "requires_manipulation": false
+  }
+  ```
+
+* Success: Yes
+
+* Failure Type: N/A
+
+* Notes:
+
+  * 사용자 입력은 한국어로 받고 Mission command 내부 문자열은 영어 `lowercase_snake_case`로 출력했다.
+  * LLM은 명령을 해석할 뿐 Navigation2나 MoveIt2를 직접 실행하지 않는다.
+
+* Related Files:
+
+  * `src/mission_parser/mission_parser/llm_mission_parser.py`
+  * `src/mission_parser/setup.py`
+
+---
+
+### P10-EXP-0003_structured_outputs_multi_command_test
+
+* Date: 2026-06-12
+
+* Phase: Phase 10. LLM/VLM extension
+
+* Goal: Pydantic 기반 Structured Outputs를 적용하고 여러 종류의 자연어 명령을 자동 검증한다.
+
+* Environment:
+
+  * ROS2: Humble Hawksbill
+  * Python: 3.10
+  * Package: `mission_parser`
+  * Model: `gpt-4o-mini`
+  * Schema: Pydantic `MissionCommand`
+
+* Command:
+
+  ```bash
+  cd ~/projects/missionbot-ros2
+
+  colcon build --packages-select mission_parser
+  source install/setup.bash
+
+  ros2 run mission_parser llm_mission_parser
+  ```
+
+* Topics: N/A
+
+* Result:
+
+  * `client.responses.parse()`와 Pydantic schema를 적용했다.
+  * 수동 JSON 코드 블록 제거와 `json.loads()` 처리를 제거했다.
+  * 다음 6개 자연어 명령을 테스트했다.
+
+  ```text
+  책상 앞으로 이동해줘
+  빨간 컵을 찾아줘
+  선반 앞까지 가서 멈춰
+  왼쪽에 있는 컵을 확인해줘
+  멈춰
+  커피를 만들어줘
+  ```
+
+  * 초기 테스트에서는 공간 관계가 누락되거나 `target`에 잘못 배치되는 문제가 발견되었다.
+  * 공간 관계 규칙과 예시를 prompt에 추가했다.
+  * `unknown` 명령에서도 추출 가능한 entity를 보존하는 정책을 적용했다.
+  * 최종 Exact-match 결과는 6/6이었다.
+
+* Success: Yes
+
+* Failure Type: N/A
+
+* Notes:
+
+  * Structured Outputs는 필드와 타입을 고정하지만 필드 사이의 의미적 일관성까지 자동으로 보장하지는 않았다.
+  * `front`, `left`, `right`, `behind`와 같은 공간 관계는 `target`이 아니라 `constraints`에 저장하도록 규칙을 보완했다.
+  * 특정 테스트 문장에 prompt를 계속 추가하는 대신 별도의 Semantic Validator가 필요하다고 판단했다.
+
+* Related Files:
+
+  * `src/mission_parser/mission_parser/llm_mission_parser.py`
+
+---
+
+### P10-EXP-0004_semantic_validator_test
+
+* Date: 2026-06-12
+
+* Phase: Phase 10. LLM/VLM extension
+
+* Goal: LLM이 생성한 Mission command의 의미 규칙과 실행 안전 조건을 Python 코드로 검사한다.
+
+* Environment:
+
+  * ROS2: Humble Hawksbill
+  * Python: 3.10
+  * Package: `mission_parser`
+
+* Command:
+
+  ```bash
+  cd ~/projects/missionbot-ros2
+
+  colcon build --packages-select mission_parser
+  source install/setup.bash
+
+  ros2 run mission_parser semantic_validator_test
+  ```
+
+* Topics: N/A
+
+* Result:
+
+  * 정상 및 비정상 Mission command 6개를 독립적으로 검사했다.
+  * 다음 오류를 정상적으로 탐지했다.
+
+  ```text
+  move_to target 누락
+  방향 표현을 target으로 사용
+  stop 명령에서 navigation flag 활성화
+  unknown 명령에서 manipulation flag 활성화
+  ```
+
+  * `unknown` 명령에 entity가 남아 있더라도 모든 실행 flag가 `false`이면 유효한 명령으로 처리하고 경고를 반환했다.
+
+  ```text
+  최종 Semantic Validator 테스트 결과
+  PASS: 6
+  FAIL: 0
+  TOTAL: 6
+  ```
+
+* Success: Yes
+
+* Failure Type: N/A
+
+* Notes:
+
+  * Validator는 LLM 출력을 자동으로 수정하지 않고 오류와 경고를 반환한다.
+  * Semantic Validation 실패 명령은 실행 계층으로 전달하지 않도록 설계했다.
+
+* Related Files:
+
+  * `src/mission_parser/mission_parser/semantic_validator.py`
+  * `src/mission_parser/mission_parser/semantic_validator_test.py`
+  * `src/mission_parser/setup.py`
+
+---
+
+### P10-EXP-0005_llm_parser_validator_integration
+
+* Date: 2026-06-12
+
+* Phase: Phase 10. LLM/VLM extension
+
+* Goal: LLM Mission Parser의 출력에 Semantic Validator와 실행 허용 정책을 연결한다.
+
+* Environment:
+
+  * ROS2: Humble Hawksbill
+  * Python: 3.10
+  * Package: `mission_parser`
+  * Model: `gpt-4o-mini`
+
+* Command:
+
+  ```bash
+  cd ~/projects/missionbot-ros2
+
+  colcon build --packages-select mission_parser
+  source install/setup.bash
+
+  ros2 run mission_parser llm_mission_parser
+  ```
+
+* Topics: N/A
+
+* Result:
+
+  ```text
+  Exact-match PASS: 6
+  Exact-match FAIL: 0
+  TOTAL: 6
+  Exact-match pass rate: 100.0%
+  Semantic Validation PASS: 6/6
+  Execution Allowed: 5/6
+  ```
+
+  * `move_to`, `inspect_object`, `stop` 명령은 Validation 통과 후 실행 가능 상태로 판단되었다.
+  * `"커피를 만들어줘"`는 `unknown`으로 구조화되었고 Semantic Validation은 통과했지만 실행은 차단되었다.
+
+* Success: Yes
+
+* Failure Type: N/A
+
+* Notes:
+
+  * `is_valid`는 Mission command 내부 필드의 의미적 일관성을 나타낸다.
+  * `execution_allowed`는 해당 명령을 실제 실행 계층으로 전달할 수 있는지를 나타낸다.
+  * 유효한 `unknown` 명령도 실행 가능한 명령으로 취급하지 않는다.
+
+* Related Files:
+
+  * `src/mission_parser/mission_parser/llm_mission_parser.py`
+  * `src/mission_parser/mission_parser/semantic_validator.py`
+
+---
+
+### P10-EXP-0006_ros2_mission_parser_node
+
+* Date: 2026-06-12
+
+* Phase: Phase 10. LLM/VLM extension
+
+* Goal: 자연어 명령 입력, LLM parsing, Semantic Validation, 검증된 Mission command 발행을 ROS2 topic으로 연결한다.
+
+* Environment:
+
+  * ROS2: Humble Hawksbill
+  * Python: 3.10
+  * Package: `mission_parser`
+  * Model: `gpt-4o-mini`
+
+* Command:
+
+  ```bash
+  cd ~/projects/missionbot-ros2
+
+  colcon build --packages-select mission_parser
+  source install/setup.bash
+
+  ros2 run mission_parser mission_parser_node
+  ```
+
+  정상 명령 발행:
+
+  ```bash
+  ros2 topic pub --once \
+  /missionbot/user_command \
+  std_msgs/msg/String \
+  "{data: '책상 앞으로 이동해줘'}"
+  ```
+
+  결과 확인:
+
+  ```bash
+  ros2 topic echo /missionbot/mission_command
+  ```
+
+  지원 범위 밖 명령 발행:
+
+  ```bash
+  ros2 topic pub --once \
+  /missionbot/user_command \
+  std_msgs/msg/String \
+  "{data: '커피를 만들어줘'}"
+  ```
+
+* Topics:
+
+  * `/missionbot/user_command`
+  * `/missionbot/mission_command`
+
+* Result:
+
+  * `mission_parser_node`가 `/missionbot/user_command`의 자연어 명령을 정상 수신했다.
+  * `"책상 앞으로 이동해줘"` 명령이 LLM Parser와 Semantic Validator를 통과했다.
+  * 검증된 Mission command가 `/missionbot/mission_command`로 발행되었다.
+
+  ```json
+  {
+    "intent": "move_to",
+    "target": "desk",
+    "object": null,
+    "constraints": [
+      "front"
+    ],
+    "requires_navigation": true,
+    "requires_vision": false,
+    "requires_manipulation": false
+  }
+  ```
+
+  * `"커피를 만들어줘"` 명령은 `unknown`으로 분류되었다.
+  * 모든 실행 flag가 `false`인지 확인한 뒤 실행 지원 범위 밖 명령으로 판단했다.
+  * `/missionbot/mission_command` topic 발행이 차단되었다.
+
+* Success: Yes
+
+* Failure Type: N/A
+
+* Notes:
+
+  * LLM은 자연어 해석만 담당한다.
+  * Semantic Validator가 실행 안전 조건을 검사한다.
+  * ROS2 Node는 검증되고 실행 가능한 Mission command만 topic으로 발행한다.
+  * 이번 Phase에서는 Navigation2와 MoveIt2에 직접 연결하지 않았다.
+  * VLM과 실제 영상 기반 객체 선택은 구현하지 않았다.
+
+* Related Files:
+
+  * `src/mission_parser/mission_parser/mission_parser_node.py`
+  * `src/mission_parser/mission_parser/llm_mission_parser.py`
+  * `src/mission_parser/mission_parser/semantic_validator.py`
+  * `src/mission_parser/package.xml`
+  * `src/mission_parser/setup.py`
